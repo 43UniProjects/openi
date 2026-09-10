@@ -1,0 +1,33 @@
+# Virtual Environments
+venv/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Museum Security Project Specifics
+suspects/
+best_openvino_model/
+yolov8n_openvino_model/
+old-trained-models/
+Train/
+
+# Video Sources & Media Cache
+src/
+*.mp4
+*.MOV
+*.avi
+*.jpg
+*.jpeg
+*.png
+
+# OS & IDE Files
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
