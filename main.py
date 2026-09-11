@@ -13,7 +13,9 @@ def main():
     )
     reid_system = ReIDEngine(REID_THRESHOLD)
 
+    # replace this path with the path to your video file
     video_path = "src/knife/knife-cover-2.MOV"
+    #video_path = 0  # Uncomment this line to use webcam instead of a video file
     cap = cv2.VideoCapture(video_path)
     
     if not cap.isOpened():

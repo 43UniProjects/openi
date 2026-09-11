@@ -19,6 +19,7 @@ The underlying architecture is modularized to support the following upcoming fea
 * **Artifact Theft Detection:** Monitor stationary museum artifacts and flag suspects who remove objects from their designated podiums.
 * **Restricted Area Geofencing:** Define mathematical coordinate boundaries to instantly flag individuals trespassing in unauthorized zones.
 * **Unified Suspect Tracking:** Expand the Re-ID engine to track thieves and trespassers alongside armed individuals.
+* **Live Camera Integration:** Transition the input source from pre-recorded video files to real-time CCTV or webcam streams via OpenCV.
 
 ## ⚙️ Local Setup Instructions
 
@@ -84,14 +85,20 @@ This method uses your graphics card for maximum processing speed.
    ```
 
 ### 5. Execute the Pipeline
-You can test the system by providing a video source in `main.py` and running the application:
+Before running the system, open `main.py` and update the `video_path` variable to point to your own local video file, or set it to `0` to use your live webcam. Also you can use RTSP stream URL (for an IP security camera) as well:
+```python
+video_path = "your_video_file.mp4" # Or set to 0 for a live camera feed
+```
+Then, execute the application:
 ```bash
 python main.py
 ```
 
+---
+
 ## 👨‍💻 Developer Information
 
-This software architecture was engineered as the IoT project for the Digital Control Systems module. It is a core component of the Bachelor of Honors in Information and Communication Technology (BICT) degree program at the University of Sri Jayewardenepura.
+This software was engineered as the IoT project for the Digital Control Systems module. It is a core component of the Bachelor of Honors in Information and Communication Technology (BICT) degree program at the University of Sri Jayewardenepura.
 
 * **Developer 1:** [Janindu Malshan](https://github.com/imjanindu)
 * **Role:** Lead System Architect & Developer
