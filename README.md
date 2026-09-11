@@ -2,7 +2,7 @@
 
 A real-time, highly optimized computer vision pipeline designed for museum security environments. This system utilizes a dual-model YOLOv8 architecture to track individuals and detect weapons simultaneously. It is engineered to run efficiently on standard CPUs using Intel OpenVINO compilation, with full support for NVIDIA GPUs via CUDA.
 
-## 🚀 Features & Current Progress (Sprint 1)
+## 🚀 Features & Current Progress
 
 This repository currently includes a fully modular, object-oriented pipeline with the following active features:
 
@@ -25,7 +25,7 @@ The underlying architecture is modularized to support the following upcoming fea
 Follow these steps to deploy and run this security system on your local machine. 
 
 ### 1. Prerequisites
-Ensure you have Python 3.8 or higher installed on your system. It is highly recommended to use a virtual environment.
+Ensure you have Python 3.8 or higher installed on your system. 
 
 ### 2. Clone the Repository
 Open your terminal and clone this project:
@@ -34,15 +34,30 @@ git clone <your-github-repo-url>
 cd museum-security-project
 ```
 
-### 3. Hardware-Specific Setup
+### 3. Create a Virtual Environment
+It is highly recommended to isolate your project dependencies to prevent conflicts with other Python projects.
+
+**For Windows:**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
+
+**For macOS and Linux:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 4. Hardware-Specific Setup
 
 Choose the setup path that matches your computer's hardware.
 
 **Option A: CPU-Only Setup (Intel/AMD)**
 This method uses OpenVINO to maximize CPU performance.
-1. Install the required computer vision libraries:
+1. Install the required computer vision libraries via the requirements file:
    ```bash
-   pip install ultralytics opencv-python numpy
+   pip install -r requirements.txt
    ```
 2. Compile the raw PyTorch weights into OpenVINO models:
    ```bash
@@ -57,10 +72,10 @@ This method uses OpenVINO to maximize CPU performance.
 
 **Option B: Dedicated NVIDIA GPU Setup (CUDA)**
 This method uses your graphics card for maximum processing speed.
-1. Install the CUDA-enabled version of PyTorch along with the other libraries:
+1. Install the CUDA-enabled version of PyTorch first, then install the remaining project requirements:
    ```bash
    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-   pip install ultralytics opencv-python numpy
+   pip install -r requirements.txt
    ```
 2. Open your `config.py` file and update the paths to use the raw PyTorch weights directly:
    ```python
@@ -68,8 +83,17 @@ This method uses your graphics card for maximum processing speed.
    PERSON_MODEL_PATH = 'yolov8n.pt'
    ```
 
-### 4. Execute the Pipeline
+### 5. Execute the Pipeline
 You can test the system by providing a video source in `main.py` and running the application:
 ```bash
 python main.py
 ```
+
+## 👨‍💻 Developer Information
+
+This software architecture was engineered as the IoT project for the Digital Control Systems module. It is a core component of the Bachelor of Honors in Information and Communication Technology (BICT) degree program at the University of Sri Jayewardenepura.
+
+* **Developer 1:** [Janindu Malshan](https://github.com/imjanindu)
+* **Role:** Lead System Architect & Developer
+
+*Engineered with a focus on modularity, real-time performance, and scalable computer vision design.*
