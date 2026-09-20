@@ -7,7 +7,7 @@ name = "openi"
 version = "1.0.0"
 description = "An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting."
 authors = [
-    { name = "Janindu Malshan" },
+    { name = "Janindu Malshan", email = "janindumalshan123@gmail.com" },
     { name = "Malith Banuka", email = "malithbanukasubsinghe@gmail.com" }
 ]
 readme = "README.md"
