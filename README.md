@@ -66,7 +66,7 @@ This project utilizes `just` to automate virtual environment creation, dependenc
 
 ```bash
 git clone <your-github-repo-url>
-cd OpenI
+cd openi
 
 ```
 
