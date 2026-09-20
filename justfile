@@ -27,6 +27,11 @@ setup:
     @Write-Host "Activate your environment" -ForegroundColor Red
     @Write-Host "Alternatively, simply use 'just run' or 'just format'" -ForegroundColor Green
 
+setup-gpu: setup
+    @Write-Host "-> Installing CUDA PyTorch..." -ForegroundColor Yellow
+    {{python}} -m pip install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu126 --force-reinstall --no-deps
+    @Write-Host "=== GPU Setup Complete! ===" -ForegroundColor Green
+
 # Runs the main OpenI application
 run:
     {{openi}}
