@@ -74,8 +74,15 @@ cd OpenI
 
 Run the setup command to automatically initialize the `.venv`, upgrade pip, install the `openi` package in editable mode with `[dev]` dependencies, and attach Git hooks:
 
+* **Option A: CPU-Only:**
 ```bash
 just setup
+
+```
+
+* **Option B: Dedicated NVIDIA GPU:**
+```bash
+just setup-gpu
 
 ```
 
