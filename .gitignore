@@ -24,7 +24,6 @@ project_management/.notes
 # ====================================================================
 # YOLO Training Outputs & Weights
 runs/
-*.pt
 *.onnx
 *.engine
 *.torchscript
