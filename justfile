@@ -23,7 +23,9 @@ setup:
     @Write-Host "-> Configuring pre-commit hooks..." -ForegroundColor Yellow
     {{precommit}} install
     {{precommit}} install --hook-type commit-msg
-    @Write-Host "=== Setup Complete! Run 'just run' to start. ===" -ForegroundColor Green
+    @Write-Host "=== Setup Complete! ===" -ForegroundColor Green
+    @Write-Host "Activate your environment" -ForegroundColor Red
+    @Write-Host "Alternatively, simply use 'just run' or 'just format'" -ForegroundColor Green
 
 # Runs the main OpenI application
 run:

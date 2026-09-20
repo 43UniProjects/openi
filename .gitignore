@@ -1,13 +1,14 @@
-# ====================================================================
-# Museum Security Project Specifics
-# ====================================================================
 # Custom YOLO & OpenVINO Models
 best_openvino_model/
 yolov8n_openvino_model/
 old-trained-models/
 
 # Dataset folders
-data/
+data/*
+!data/test_footages/
+data/test_footages/*
+!data/test_footages/.keep
+
 
 project_management/.notes
 
@@ -19,9 +20,6 @@ project_management/.notes
 *.jpeg
 *.png
 
-# ====================================================================
-# YOLO / Deep Learning Framework Defaults
-# ====================================================================
 # YOLO Training Outputs & Weights
 runs/
 *.onnx
@@ -37,9 +35,7 @@ wandb/
 comet/
 mlruns/
 
-# ====================================================================
 # Python Basics & Environments
-# ====================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -66,9 +62,6 @@ dist/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
 
-# ====================================================================
-# IDEs & Operating System Noise
-# ====================================================================
 # Visual Studio Code & PyCharm
 .vscode/
 !.vscode/settings.json
