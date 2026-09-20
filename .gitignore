@@ -1,23 +1,17 @@
-# Virtual Environments
-venv/
-env/
-.env
-
-# Python Cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
+# ====================================================================
 # Museum Security Project Specifics
-suspects/
+# ====================================================================
+# Custom YOLO & OpenVINO Models
 best_openvino_model/
 yolov8n_openvino_model/
 old-trained-models/
-Train/
 
-# Video Sources & Media Cache
-src/
+# Dataset folders
+data/
+
+project_management/.notes
+
+# Video Sources & Media Cache (Prevents committing raw footage/stills)
 *.mp4
 *.MOV
 *.avi
@@ -25,9 +19,74 @@ src/
 *.jpeg
 *.png
 
-# OS & IDE Files
+# ====================================================================
+# YOLO / Deep Learning Framework Defaults
+# ====================================================================
+# YOLO Training Outputs & Weights
+runs/
+*.pt
+*.onnx
+*.engine
+*.torchscript
+weights/
+datasets/
+data/**/*.zip
+data/**/*.tar.gz
+
+# Hyperparameter tuning / tracking logs
+wandb/
+comet/
+mlruns/
+
+# ====================================================================
+# Python Basics & Environments
+# ====================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments & Packages
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environment variables / Secrets
+.env
+.env.*
+.secrets
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# ====================================================================
+# IDEs & Operating System Noise
+# ====================================================================
+# Visual Studio Code & PyCharm
 .vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+*.code-workspace
 .idea/
-Thumbs.db
-desktop.ini
+
+# macOS / Windows OS artifacts
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Ehthumbs.db
+Desktop.ini
+desktop.ini
