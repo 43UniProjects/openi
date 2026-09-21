@@ -90,6 +90,12 @@ just setup-gpu
 
 Depending on your machine, you must configure the AI models inside `src/openi/core/config.py`.
 
+**Important:** First of all, activate the virtual environment:
+
+```bash
+.\.venv\Scripts\activate
+```
+
 * **Option A: CPU-Only (OpenVINO):**
 Compile the PyTorch weights to OpenVINO format for maximum CPU speed:
 ```bash
@@ -124,7 +130,7 @@ just run
 
 ```
 
-*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
+*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` by typing `.\.venv\Scripts\activate` (if already done, then no need for doing it) and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
 
 ### Code Maintenance
 
