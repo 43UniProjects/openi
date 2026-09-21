@@ -50,6 +50,10 @@ format:
     {{ruff}} check --fix .
     {{ruff}} format .
 
+# Installs any new dependencies added to pyproject.toml
+sync:
+    {{python}} -m pip install -e ".[dev]"
+
 # Completely removes the virtual environment to start fresh
 clean:
     @Write-Host "-> Removing virtual environment..." -ForegroundColor Red
