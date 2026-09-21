@@ -15,7 +15,9 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 SUSPECT_DIR = os.path.join(ROOT_DIR, "data", "saved_suspects")
 os.makedirs(SUSPECT_DIR, exist_ok=True)
 
-FOOTAGE_SRC_TYPE: SrcType = SrcType.VIDEO
+FOOTAGE_SRC_TYPE: SrcType = SrcType(
+    os.getenv("FOOTAGE_SRC_TYPE", SrcType.VIDEO.value).strip().lower()
+)
 
 TEST_VIDEO_PATH = os.path.join(ROOT_DIR, "data", "test_footages")
 
