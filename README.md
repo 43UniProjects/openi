@@ -66,7 +66,7 @@ This project utilizes `just` to automate virtual environment creation, dependenc
 
 ```bash
 git clone <your-github-repo-url>
-cd OpenI
+cd openi
 
 ```
 
@@ -86,9 +86,37 @@ just setup-gpu
 
 ```
 
-### 3. Hardware-Specific Model Setup
+### 3. Configure the Environment
+
+Create a file named `.env` in the project root:
+
+```dotenv
+FOOTAGE_SRC_TYPE=video
+CURRENT_TEST_FOOTAGE=
+WEBCAM_ID=0
+LIVE_FEED_URL=
+```
+
+Use the variables as follows:
+
+* `FOOTAGE_SRC_TYPE`: The input source type. Accepts `video`, `webcam`, or `live`.
+* `CURRENT_TEST_FOOTAGE`: The test video filename inside `data/test_footages/`.
+* `WEBCAM_ID`: The camera device index used by the computer (usually `0` for the default camera).
+* `LIVE_FEED_URL`: The URL of an IP camera or other live stream. Leave it empty when using a test video or webcam.
+
+The `.env` file is intentionally excluded from Git. Do not commit it if it contains camera credentials or private stream URLs. A sample local video should be copied to `data/test_footages/` and its filename should match `CURRENT_TEST_FOOTAGE`.
+
+Set `FOOTAGE_SRC_TYPE` to `video` for a test video, `webcam` for a local camera, or `live` for a network stream. The application converts this value to the type-safe `SrcType` enum when it starts.
+
+### 4. Hardware-Specific Model Setup
 
 Depending on your machine, you must configure the AI models inside `src/openi/core/config.py`.
+
+**Important:** First of all, activate the virtual environment:
+
+```bash
+.\.venv\Scripts\activate
+```
 
 * **Option A: CPU-Only (OpenVINO):**
 Compile the PyTorch weights to OpenVINO format for maximum CPU speed:
@@ -124,7 +152,7 @@ just run
 
 ```
 
-*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
+*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` by typing `.\.venv\Scripts\activate` (if already done, then no need for doing it) and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
 
 ### Code Maintenance
 
@@ -155,10 +183,10 @@ Recent workflow automation and architectural updates have significantly simplifi
 * **Auto-Initialization:** Required directories (like `data/saved_suspects`) are automatically verified and created on startup if they do not exist.
 
 ### Key Environment Variables
-Modify these variables in `config.py` to adjust how the system operates:
+The video source values are loaded from the root `.env` file when the application starts:
 
 **Video Source Settings:**
-* `FOOTAGE_SRC_TYPE`: Controls the active input stream. Accepts `SrcType` enums (e.g., `SrcType.VIDEO`, `SrcType.WEBCAM`, `SrcType.LIVE_STREAM`).
+* `FOOTAGE_SRC_TYPE`: The input source type. Accepts `video`, `webcam`, or `live`.
 * `CURRENT_TEST_FOOTAGE`: The filename of the local video to analyze (e.g., `"knife.MOV"`). Reads from the `data/test_footages/` directory.
 * `WEBCAM_ID`: The hardware index of the local camera (default is `0`).
 * `LIVE_FEED_URL`: Network stream URL for IP cameras (e.g., `"rtsp://..."`).
