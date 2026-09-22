@@ -3,14 +3,14 @@
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.14%2B-EE4C2C.svg?logo=pytorch&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5.0%2B-5C3EE8.svg?logo=opencv&logoColor=white)
-![YOLOv8](https://img.shields.io/badge/AI_Model-YOLOv8-00FFFF.svg?logo=ultralytics&logoColor=black)
+![YOLOv26](https://img.shields.io/badge/AI_Model-YOLOv26-00FFFF.svg?logo=ultralytics&logoColor=black)
 ![Task Runner](https://img.shields.io/badge/task_runner-just-black)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting. OpenI utilizes a dual-model YOLOv8 architecture to track individuals and detect weapons simultaneously, engineered to run efficiently on standard CPUs (via Intel OpenVINO) with full native support for NVIDIA GPUs.
+An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting. OpenI utilizes a dual-model YOLOv26 architecture to track individuals and detect weapons simultaneously, engineered to run efficiently on standard CPUs (via Intel OpenVINO) with full native support for NVIDIA GPUs.
 
 ---
 
@@ -19,7 +19,7 @@ An AI-driven museum security system that provides real-time threat detection, su
 ```text
 OpenI/
 ├── data/                  # Local storage for datasets, test footages, and captured suspects
-├── models/                # YOLOv8 weights (Native PyTorch .pt / OpenVINO compiled)
+├── models/                # YOLOv26 weights (Native PyTorch .pt / OpenVINO compiled)
 ├── src/
 │   └── openi/             # Main application package
 │       ├── ai/            # Detection models and Re-ID (HSV histogram) logic
@@ -121,8 +121,8 @@ Depending on your machine, you must configure the AI models inside `src/openi/co
 * **Option A: CPU-Only (OpenVINO):**
 Compile the PyTorch weights to OpenVINO format for maximum CPU speed:
 ```bash
-yolo export model=models/yolov8n.pt format=openvino imgsz=640
-yolo export model=models/best.pt format=openvino imgsz=640
+yolo export model=models/yolov26n.pt format=openvino imgsz=416
+yolo export model=models/weapon.pt format=openvino imgsz=416
 
 ```
 
@@ -192,7 +192,7 @@ The video source values are loaded from the root `.env` file when the applicatio
 * `LIVE_FEED_URL`: Network stream URL for IP cameras (e.g., `"rtsp://..."`).
 
 **Model Configuration:**
-* `WEAPON_MODEL_PATH` / `PERSON_MODEL_PATH`: Absolute paths to the YOLOv8 weights. Automatically resolved to the `models/` directory.
+* `WEAPON_MODEL_PATH` / `PERSON_MODEL_PATH`: Absolute paths to the YOLOv26 weights. Automatically resolved to the `models/` directory.
 
 **Mathematical Thresholds:**
 * `WEAPON_CONF`: Minimum confidence score required to confirm a weapon detection (Default: `0.60`).
