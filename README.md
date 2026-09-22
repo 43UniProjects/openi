@@ -88,7 +88,7 @@ just setup-gpu
 
 ### 3. Configure the Environment
 
-Create a file named `.env` in the project root:
+Rename `example.env` in the project root to `.env`:
 
 ```dotenv
 FOOTAGE_SRC_TYPE=video
