@@ -28,8 +28,8 @@ WEBCAM_ID = int(os.getenv("WEBCAM_ID", "0"))
 LIVE_FEED_URL = os.getenv("LIVE_FEED_URL", "")
 
 # Neural Network Paths (Compiled for Intel OpenVINO CPU Optimization)
-WEAPON_MODEL_PATH = os.path.join(ROOT_DIR, "models", "best_openvino_model")
-PERSON_MODEL_PATH = os.path.join(ROOT_DIR, "models", "yolov8n_openvino_model")
+WEAPON_MODEL_PATH = os.path.join(ROOT_DIR, "models", "weapon_openvino_model")
+PERSON_MODEL_PATH = os.path.join(ROOT_DIR, "models", "yolov26n_openvino_model")
 
 # Mathematical Thresholds
 WEAPON_CONF = 0.60

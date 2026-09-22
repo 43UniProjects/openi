@@ -5,14 +5,14 @@ from openi.core.logger import logger
 
 class SecurityDetectors:
     def __init__(self, weapon_path, person_path, weapon_conf, person_conf, keywords):
-        logger.debug("Loading YOLOv8 models into memory... (This may take a moment)")
+        logger.debug("Loading YOLOv26 models into memory... (This may take a moment)")
         try:
             self.weapon_model = YOLO(weapon_path)
             self.person_model = YOLO(person_path)
             self.weapon_conf = weapon_conf
             self.person_conf = person_conf
             self.keywords = keywords
-            logger.debug("YOLOv8 models loaded successfully.")
+            logger.debug("YOLOv26 models loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load YOLO models: {e}")
             raise e

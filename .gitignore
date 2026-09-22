@@ -1,6 +1,6 @@
 # Custom YOLO & OpenVINO Models
-best_openvino_model/
-yolov8n_openvino_model/
+weapon_openvino_model/
+yolov26n_openvino_model/
 old-trained-models/
 
 # Dataset folders
