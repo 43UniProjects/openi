@@ -121,8 +121,8 @@ Depending on your machine, you must configure the AI models inside `src/openi/co
 * **Option A: CPU-Only (OpenVINO):**
 Compile the PyTorch weights to OpenVINO format for maximum CPU speed:
 ```bash
-yolo export model=models/yolov26n.pt format=openvino imgsz=640
-yolo export model=models/weapon.pt format=openvino imgsz=640
+yolo export model=models/yolov26n.pt format=openvino imgsz=416
+yolo export model=models/weapon.pt format=openvino imgsz=416
 
 ```
 

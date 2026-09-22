@@ -18,7 +18,7 @@ class SecurityDetectors:
             raise e
 
     def get_weapons(self, frame):
-        results = self.weapon_model(frame, verbose=False, imgsz=640, conf=self.weapon_conf)
+        results = self.weapon_model(frame, verbose=False, imgsz=416, conf=self.weapon_conf)
         raw_weapons = []
         for r in results:
             for box in r.boxes:
@@ -36,7 +36,7 @@ class SecurityDetectors:
 
     def get_tracked_persons(self, frame):
         results = self.person_model.track(
-            frame, verbose=False, imgsz=640, conf=self.person_conf, classes=[0], persist=True
+            frame, verbose=False, imgsz=416, conf=self.person_conf, classes=[0], persist=True
         )
         raw_persons = []
         # Ultralytics track can sometimes return boxes without IDs if tracking fails momentarily,
