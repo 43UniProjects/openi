@@ -55,4 +55,4 @@ sync:
 # Completely removes the virtual environment to start fresh
 clean:
     @Write-Host "-> Removing virtual environment..." -ForegroundColor Red
-    if ([System.IO.Directory]::Exists("$curr\{{venv}}")) { Remove-Item -LiteralPath "$curr\{{venv}}" -Recurse -Force }
+    if ([System.IO.Directory]::Exists("$curr\.venv")) { Get-Process python, openi -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$curr\.venv\*" } | Stop-Process -Force; Start-Sleep -Milliseconds 200; Remove-Item -LiteralPath "$curr\.venv" -Recurse -Force }
