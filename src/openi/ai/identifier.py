@@ -22,7 +22,9 @@ class Identifier:
             torso_crop = image_crop
 
         hsv = cv2.cvtColor(torso_crop, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist([hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
+        # hist = cv2.calcHist([hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
+
+        hist = cv2.calcHist([hsv], [0, 1], None, [16, 16], [0, 180, 0, 256])
         cv2.normalize(hist, hist, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
         return hist
 

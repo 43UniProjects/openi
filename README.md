@@ -3,14 +3,14 @@
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.14%2B-EE4C2C.svg?logo=pytorch&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5.0%2B-5C3EE8.svg?logo=opencv&logoColor=white)
-![YOLOv8](https://img.shields.io/badge/AI_Model-YOLOv8-00FFFF.svg?logo=ultralytics&logoColor=black)
+![YOLOv26](https://img.shields.io/badge/AI_Model-YOLOv26-00FFFF.svg?logo=ultralytics&logoColor=black)
 ![Task Runner](https://img.shields.io/badge/task_runner-just-black)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting. OpenI utilizes a dual-model YOLOv8 architecture to track individuals and detect weapons simultaneously, engineered to run efficiently on standard CPUs (via Intel OpenVINO) with full native support for NVIDIA GPUs.
+An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting. OpenI utilizes a dual-model YOLOv26 architecture to track individuals and detect weapons simultaneously, engineered to run efficiently on standard CPUs (via Intel OpenVINO) with full native support for NVIDIA GPUs.
 
 ---
 
@@ -19,7 +19,7 @@ An AI-driven museum security system that provides real-time threat detection, su
 ```text
 OpenI/
 ├── data/                  # Local storage for datasets, test footages, and captured suspects
-├── models/                # YOLOv8 weights (Native PyTorch .pt / OpenVINO compiled)
+├── models/                # YOLOv26 weights (Native PyTorch .pt / OpenVINO compiled)
 ├── src/
 │   └── openi/             # Main application package
 │       ├── ai/            # Detection models and Re-ID (HSV histogram) logic
@@ -66,7 +66,7 @@ This project utilizes `just` to automate virtual environment creation, dependenc
 
 ```bash
 git clone <your-github-repo-url>
-cd OpenI
+cd openi
 
 ```
 
@@ -74,20 +74,55 @@ cd OpenI
 
 Run the setup command to automatically initialize the `.venv`, upgrade pip, install the `openi` package in editable mode with `[dev]` dependencies, and attach Git hooks:
 
+* **Option A: CPU-Only:**
 ```bash
 just setup
 
 ```
 
-### 3. Hardware-Specific Model Setup
+* **Option B: Dedicated NVIDIA GPU:**
+```bash
+just setup-gpu
+
+```
+
+### 3. Configure the Environment
+
+Rename `example.env` in the project root to `.env`:
+
+```dotenv
+FOOTAGE_SRC_TYPE=video
+CURRENT_TEST_FOOTAGE=
+WEBCAM_ID=0
+LIVE_FEED_URL=
+```
+
+Use the variables as follows:
+
+* `FOOTAGE_SRC_TYPE`: The input source type. Accepts `video`, `webcam`, or `live`.
+* `CURRENT_TEST_FOOTAGE`: The test video filename inside `data/test_footages/`.
+* `WEBCAM_ID`: The camera device index used by the computer (usually `0` for the default camera).
+* `LIVE_FEED_URL`: The URL of an IP camera or other live stream. Leave it empty when using a test video or webcam.
+
+The `.env` file is intentionally excluded from Git. Do not commit it if it contains camera credentials or private stream URLs. A sample local video should be copied to `data/test_footages/` and its filename should match `CURRENT_TEST_FOOTAGE`.
+
+Set `FOOTAGE_SRC_TYPE` to `video` for a test video, `webcam` for a local camera, or `live` for a network stream. The application converts this value to the type-safe `SrcType` enum when it starts.
+
+### 4. Hardware-Specific Model Setup
 
 Depending on your machine, you must configure the AI models inside `src/openi/core/config.py`.
+
+**Important:** First of all, activate the virtual environment:
+
+```bash
+.\.venv\Scripts\activate
+```
 
 * **Option A: CPU-Only (OpenVINO):**
 Compile the PyTorch weights to OpenVINO format for maximum CPU speed:
 ```bash
-yolo export model=models/yolov8n.pt format=openvino imgsz=640
-yolo export model=models/best.pt format=openvino imgsz=640
+yolo export model=models/yolov26n.pt format=openvino imgsz=416
+yolo export model=models/weapon.pt format=openvino imgsz=416
 
 ```
 
@@ -117,7 +152,7 @@ just run
 
 ```
 
-*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
+*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` by typing `.\.venv\Scripts\activate` (if already done, then no need for doing it) and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
 
 ### Code Maintenance
 
@@ -148,16 +183,16 @@ Recent workflow automation and architectural updates have significantly simplifi
 * **Auto-Initialization:** Required directories (like `data/saved_suspects`) are automatically verified and created on startup if they do not exist.
 
 ### Key Environment Variables
-Modify these variables in `config.py` to adjust how the system operates:
+The video source values are loaded from the root `.env` file when the application starts:
 
 **Video Source Settings:**
-* `FOOTAGE_SRC_TYPE`: Controls the active input stream. Accepts `SrcType` enums (e.g., `SrcType.VIDEO`, `SrcType.WEBCAM`, `SrcType.LIVE_STREAM`).
+* `FOOTAGE_SRC_TYPE`: The input source type. Accepts `video`, `webcam`, or `live`.
 * `CURRENT_TEST_FOOTAGE`: The filename of the local video to analyze (e.g., `"knife.MOV"`). Reads from the `data/test_footages/` directory.
 * `WEBCAM_ID`: The hardware index of the local camera (default is `0`).
 * `LIVE_FEED_URL`: Network stream URL for IP cameras (e.g., `"rtsp://..."`).
 
 **Model Configuration:**
-* `WEAPON_MODEL_PATH` / `PERSON_MODEL_PATH`: Absolute paths to the YOLOv8 weights. Automatically resolved to the `models/` directory.
+* `WEAPON_MODEL_PATH` / `PERSON_MODEL_PATH`: Absolute paths to the YOLOv26 weights. Automatically resolved to the `models/` directory.
 
 **Mathematical Thresholds:**
 * `WEAPON_CONF`: Minimum confidence score required to confirm a weapon detection (Default: `0.60`).

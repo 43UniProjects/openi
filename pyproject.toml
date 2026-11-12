@@ -7,7 +7,7 @@ name = "openi"
 version = "1.0.0"
 description = "An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting."
 authors = [
-    { name = "Janindu Malshan" },
+    { name = "Janindu Malshan", email = "janindumalshan123@gmail.com" },
     { name = "Malith Banuka", email = "malithbanukasubsinghe@gmail.com" }
 ]
 readme = "README.md"
@@ -44,12 +44,13 @@ dependencies = [
     "psutil==7.2.2",
     "pyparsing==3.3.2",
     "python-dateutil==2.9.0.post0",
+    "python-dotenv>=1.0.0",
     "PyYAML==6.0.3",
     "requests==2.34.2",
     "six==1.17.0",
     "sympy==1.14.0",
-    "torch==2.14.0",
-    "torchvision==0.29.0",
+    "torch>=2.14.0",
+    "torchvision>=0.29.0",
     "typing_extensions==4.16.0",
     "ultralytics>=8.4.209",
     "ultralytics-platform>=0.1.48",
