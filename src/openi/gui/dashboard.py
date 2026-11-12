@@ -10,7 +10,7 @@ Combines:
 
 from __future__ import annotations
 
-import time
+import asyncio
 from collections import deque
 from datetime import datetime
 
@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from nicegui import app, ui
 
 from openi.ai.engine import SecurityEngine
+from openi.core.logger import logger
 from openi.iot.sensors import MockSensorProvider, SensorStatus
 
 # ── Constants ───────────────────────────────────────────────────
@@ -51,21 +52,31 @@ _GLOBAL_ENGINE: SecurityEngine | None = None
 
 
 @app.get("/video_stream")
-def video_stream():
+async def video_stream():
     """MJPEG streaming endpoint for the AI camera feed."""
 
-    def frame_generator():
-        while True:
-            if _GLOBAL_ENGINE is not None:
+    async def frame_generator():
+        try:
+            while _GLOBAL_ENGINE is not None and _GLOBAL_ENGINE.is_running:
                 jpeg = _GLOBAL_ENGINE.get_latest_jpeg()
                 if jpeg is not None:
                     yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n")
-            time.sleep(0.033)
+                await asyncio.sleep(0.033)
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
 
     return StreamingResponse(
         frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@app.on_shutdown
+def handle_app_shutdown():
+    """Ensures AI worker threads are cleanly terminated on server exit."""
+    logger.info("NiceGUI shutdown signal received. Stopping background engine...")
+    if _GLOBAL_ENGINE is not None:
+        _GLOBAL_ENGINE.stop()
 
 
 class SecurityDashboard:

@@ -66,6 +66,11 @@ class SecurityEngine:
         self.reid: Identifier | None = None
         self.tracker: SecurityTracker | None = None
 
+    @property
+    def is_running(self) -> bool:
+        """Returns True if the worker thread is actively running."""
+        return self._running
+
     def start(self):
         """Initializes AI models and starts video processing thread."""
         if self._running:
