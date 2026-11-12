@@ -66,6 +66,7 @@ dev = [
 
 [project.scripts]
 openi = "openi.main:main"
+openi-gui = "openi.gui.dashboard:launch_dashboard"
 
 [tool.setuptools.packages.find]
 where = ["src"]

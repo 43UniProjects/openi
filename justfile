@@ -43,7 +43,7 @@ _install backend:
 
 # Runs the main OpenI application
 run:
-    {{openi}}
+    {{python}} -m openi
 
 # Runs Ruff to format and lint the codebase manually
 format:
