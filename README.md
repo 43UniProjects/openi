@@ -1,66 +1,59 @@
-# OpenI - Museum Security Tracking System
+```markdown
+# OpenI — Contributor Setup & Run Guide
 
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.14%2B-EE4C2C.svg?logo=pytorch&logoColor=white)
-![OpenCV](https://img.shields.io/badge/OpenCV-5.0%2B-5C3EE8.svg?logo=opencv&logoColor=white)
-![YOLOv26](https://img.shields.io/badge/AI_Model-YOLOv26-00FFFF.svg?logo=ultralytics&logoColor=black)
 ![Task Runner](https://img.shields.io/badge/task_runner-just-black)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-An AI-driven museum security system that provides real-time threat detection, suspect tracking, and automated incident reporting. OpenI utilizes a dual-model YOLOv26 architecture to track individuals and detect weapons simultaneously, engineered to run efficiently on standard CPUs (via Intel OpenVINO) with full native support for NVIDIA GPUs.
+This guide covers how to configure, build, and run the OpenI codebase locally based on your machine's available hardware (CPU-only vs. dedicated NVIDIA GPU).
 
 ---
 
-## 📂 Project Structure
+## 📋 Prerequisites
+
+Ensure the following tools are installed on your machine before starting:
+
+- **Python:** `>= 3.10`
+- **Git:** Installed and added to your system `PATH`
+- **`just` (Command Runner):**
+  - **Windows:** `winget install Casey.Just`
+  - **macOS / Linux:** `brew install just`
+- **NVIDIA GPU *(Optional)*:** CUDA Toolkit `11.8+` (only required if running GPU-accelerated inference)
+
+---
+
+## 📂 Key Directories
 
 ```text
 OpenI/
-├── data/                  # Local storage for datasets, test footages, and captured suspects
-├── models/                # YOLOv26 weights (Native PyTorch .pt / OpenVINO compiled)
+├── data/
+│   ├── test_footages/      # Place local test videos here
+│   └── saved_suspects/     # Auto-generated output directory for captures
+├── models/
+│   ├── *.pt                # Base YOLO model weights
+│   └── *_openvino_model/   # Generated OpenVINO model exports
 ├── src/
-│   └── openi/             # Main application package
-│       ├── ai/            # Detection models and Re-ID (HSV histogram) logic
-│       ├── core/          # Centralized configuration (config.py) and ANSI loggers
-│       ├── gui/           # User interface and display components
-│       ├── iot/           # Hardware integrations and network communications
-│       ├── tracking/      # SecurityTracker state management buffers
-│       ├── __main__.py    # Entry point for 'python -m openi' execution
-│       └── main.py        # Main execution loop
-├── .pre-commit-config.yaml# Git hook configurations (Ruff, file limits, commit standards)
-├── justfile               # Cross-platform command runner definitions
-├── pyproject.toml         # Modern Python packaging and dependency specifications
-└── README.md              # Project documentation
-
+│   └── openi/
+│       ├── ai/             # Detection and identification
+│       ├── core/           # Configuration, logging, and shared types
+│       ├── gui/            # Dashboard and application routing
+│       ├── iot/            # Sensor integrations
+│       ├── tracking/       # Tracking state management
+│       ├── __main__.py     # Module entry point
+│       └── main.py         # Application entry point
+├── tests/                  # Automated tests
+├── example.env             # Template for local environment variables
+├── justfile                # Task runner commands
+├── pyproject.toml          # Dependencies and linter config
+├── .pre-commit-config.yaml # Git hook configuration
+└── README.md               # Project documentation
 ```
 
 ---
 
-## ✨ Features / Highlights
-
-* **Dual-Model Architecture:** Runs a standard COCO model for multi-object person tracking alongside a custom-trained model strictly for weapon detection.
-* **Hardware Flexibility:** Supports OpenVINO graph compilation for rapid CPU inference and native PyTorch for high-speed NVIDIA GPU processing.
-* **Custom Re-Identification (Re-ID) Engine:** Computes a 3D HSV (Hue, Saturation, Value) color histogram of a person's upper torso to recognize suspects who leave and re-enter the camera frame.
-* **Temporal Stability Buffers:** Requires multi-frame mathematical confirmation to eliminate single-frame visual glitches and false positives completely.
-* **Automated Evidence Archiving:** Automatically crops and saves high-resolution snapshots of verified suspects to a local `/suspects` directory.
-* **Modern Developer Experience:** Fully containerized virtual environment handling, strict code formatting via Ruff, and cross-platform task execution via `just`.
-
----
-
-## 📋 Prerequisites / Requirements
-
-* **Python:** `>= 3.10`
-* **Task Runner:** [`just`](https://github.com/casey/just?utm_source=gemini) installed globally (e.g., `winget install just` on Windows, or `brew install just` on macOS/Linux).
-* **Git:** Installed and available in your system PATH.
-* *(Optional)* **NVIDIA GPU:** CUDA Toolkit 11.8+ for hardware-accelerated PyTorch inference.
-
----
-
-## 🚀 Installation
-
-This project utilizes `just` to automate virtual environment creation, dependency installation, and Git hook configuration across Windows, macOS, and Linux.
+## 🚀 Installation & Hardware Setup
 
 ### 1. Clone the Repository
 
@@ -70,56 +63,32 @@ cd openi
 
 ```
 
-### 2. Automated Setup via Just
+### 2. Place Base Model Weights
 
-Run the setup command to automatically initialize the `.venv`, upgrade pip, install the `openi` package in editable mode with `[dev]` dependencies, and attach Git hooks:
+Ensure both base YOLO weights are inside the `models/` directory before running the application:
 
-* **Option A: CPU-Only:**
+* `models/yolov26n.pt`
+* `models/weapon.pt`
+
+### 3. Set Up According to Your Hardware
+
+Follow **Option A** if you are running on a standard laptop/desktop CPU, or **Option B** if you have a dedicated NVIDIA GPU.
+
+#### Option A: CPU-Only Setup (OpenVINO)
+
+1. **Create the environment and install CPU dependencies:**
 ```bash
 just setup
 
 ```
 
-* **Option B: Dedicated NVIDIA GPU:**
-```bash
-just setup-gpu
 
-```
+2. **Activate the virtual environment:**
+* **Windows:** `.\.venv\Scripts\activate`
+* **macOS / Linux:** `source .venv/bin/activate`
 
-### 3. Configure the Environment
 
-Rename `example.env` in the project root to `.env`:
-
-```dotenv
-FOOTAGE_SRC_TYPE=video
-CURRENT_TEST_FOOTAGE=
-WEBCAM_ID=0
-LIVE_FEED_URL=
-```
-
-Use the variables as follows:
-
-* `FOOTAGE_SRC_TYPE`: The input source type. Accepts `video`, `webcam`, or `live`.
-* `CURRENT_TEST_FOOTAGE`: The test video filename inside `data/test_footages/`.
-* `WEBCAM_ID`: The camera device index used by the computer (usually `0` for the default camera).
-* `LIVE_FEED_URL`: The URL of an IP camera or other live stream. Leave it empty when using a test video or webcam.
-
-The `.env` file is intentionally excluded from Git. Do not commit it if it contains camera credentials or private stream URLs. A sample local video should be copied to `data/test_footages/` and its filename should match `CURRENT_TEST_FOOTAGE`.
-
-Set `FOOTAGE_SRC_TYPE` to `video` for a test video, `webcam` for a local camera, or `live` for a network stream. The application converts this value to the type-safe `SrcType` enum when it starts.
-
-### 4. Hardware-Specific Model Setup
-
-Depending on your machine, you must configure the AI models inside `src/openi/core/config.py`.
-
-**Important:** First of all, activate the virtual environment:
-
-```bash
-.\.venv\Scripts\activate
-```
-
-* **Option A: CPU-Only (OpenVINO):**
-Compile the PyTorch weights to OpenVINO format for maximum CPU speed:
+3. **Compile the `.pt` models to OpenVINO format:**
 ```bash
 yolo export model=models/yolov26n.pt format=openvino imgsz=416
 yolo export model=models/weapon.pt format=openvino imgsz=416
@@ -127,106 +96,90 @@ yolo export model=models/weapon.pt format=openvino imgsz=416
 ```
 
 
-* **Option B: Dedicated NVIDIA GPU (CUDA):**
-Ensure your `config.py` targets the raw `.pt` PyTorch weights directly.
+4. **Verify `src/openi/core/config.py`:** Ensure `PERSON_MODEL_PATH` and `WEAPON_MODEL_PATH` point to the generated `models/yolov26n_openvino_model` and `models/weapon_openvino_model` folders.
 
----
+#### Option B: Dedicated NVIDIA GPU Setup (CUDA)
 
-## 💻 Usage
-
-OpenI includes a command-line task runner to simplify daily development.
-
-To view all available commands, simply type:
-
+1. **Create the environment and install GPU dependencies:**
 ```bash
-just
+just setup-gpu
 
 ```
 
-### Running the Application
 
-You do not need to manually activate the virtual environment. Simply execute:
+2. **Verify `src/openi/core/config.py`:** Ensure `PERSON_MODEL_PATH` and `WEAPON_MODEL_PATH` point directly to the raw PyTorch files (`models/yolov26n.pt` and `models/weapon.pt`).
 
-```bash
-just run
+---
+
+## ⚙️ Environment Configuration
+
+1. Duplicate `example.env` in the project root and rename it to `.env`:
+```dotenv
+FOOTAGE_SRC_TYPE=video
+CURRENT_TEST_FOOTAGE=
+WEBCAM_ID=0
+LIVE_FEED_URL=
 
 ```
 
-*Alternatively, because the project is packaged via `pyproject.toml`, you can activate your `.venv` by typing `.\.venv\Scripts\activate` (if already done, then no need for doing it) and run the app globally by typing `openi`, or via `python -m openi` from the `src` directory.*
 
-### Code Maintenance
+2. Configure the variables based on the input source you want to test:
 
-To automatically format the codebase and run linting checks:
+| Variable | Accepted Values | Usage |
+| --- | --- | --- |
+| `FOOTAGE_SRC_TYPE` | `video`, `webcam`, `live` | Selects which video input mode to use on startup. |
+| `CURRENT_TEST_FOOTAGE` | Filename (e.g., `knife.MOV`) | Used when `FOOTAGE_SRC_TYPE=video`. File must be inside `data/test_footages/`. |
+| `WEBCAM_ID` | Integer (default `0`) | Used when `FOOTAGE_SRC_TYPE=webcam`. Selects the local camera index. |
+| `LIVE_FEED_URL` | Stream URL (e.g., `rtsp://...`) | Used when `FOOTAGE_SRC_TYPE=live`. Leave empty for local video or webcam. |
 
-```bash
-just format
+> **Note:** Never commit your `.env` file to Git.
+
+### Optional Tuning (`src/openi/core/config.py`)
+
+If you need to adjust detection sensitivity during testing, modify these values in `src/openi/core/config.py`:
+
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `WEAPON_CONF` | `0.60` | Minimum confidence score (`0.0`–`1.0`) to flag a weapon. |
+| `PERSON_CONF` | `0.45` | Minimum confidence score (`0.0`–`1.0`) to track a person. |
+| `REID_THRESHOLD` | `0.75` | Color-matching threshold (`0.0`–`1.0`) for re-identifying returning individuals. |
+| `WEAPON_KEYWORDS` | `['gun', 'knife', ...]` | Active class names the weapon detector will flag. |
+
+---
+
+## 💻 Running & Managing the Project
+
+All daily commands are handled through `just` (no manual `.venv` activation required):
+
+| Command | Action |
+| --- | --- |
+| `just` | List all available commands. |
+| `just run` | Start the OpenI system and web dashboard. |
+| `just format` | Format code and run Ruff linting checks. |
+| `just clean` | Delete the `.venv` and temporary cache files for a fresh start. |
+
+*(Alternatively, with `.venv` activated, you can run `openi` or `python -m openi` directly).*
+
+---
+
+## 🤝 Contribution Rules
+
+Git hooks via `pre-commit` are automatically installed during `just setup` and will block commits that violate these rules:
+
+1. **No Direct Commits to Main:** Create a branch (`feature/your-feature` or `fix/your-fix`) and open a Pull Request. Direct commits to `main` or `master` are blocked.
+2. **Conventional Commits:** Commit messages must follow the `type: description` format (e.g., `feat: add RTSP retry logic`, `fix: resolve tracker path issue`).
+3. **5 MB File Size Limit:** Any file `>= 5 MB` (such as `.pt` weights or test videos) will be rejected by Git hooks. Keep models and videos local or in external storage.
+4. **Format Before Committing:** Code must pass Ruff linting and formatting checks. Always run `just format` before staging your changes.
+
+---
+
+## 👥 Maintainers & License
+
+* **Janindu Malshan** ([@imjanindu](https://github.com/imjanindu))
+* **Malith Banuka** ([@malithbanuka](https://www.google.com/search?q=https://github.com/malithbanuka))
+
+Licensed under the **MIT License**. See `LICENSE` for details.
 
 ```
 
-To completely wipe the virtual environment and start fresh:
-
-```bash
-just clean
-
 ```
-
----
-## ⚙️ Configuration
-
-All system parameters, mathematical thresholds, and environment paths are centralized in `src/openi/core/config.py`.
-
-### Architectural Simplifications
-Recent workflow automation and architectural updates have significantly simplified the configuration process:
-* **Automated Absolute Pathing:** `ROOT_DIR` is now dynamically calculated using `pathlib.Path`. The system automatically resolves its own location regardless of where the terminal is opened, completely eliminating "file not found" errors caused by relative paths.
-* **Streamlined Model Loading:** The system has been reverted to utilize standard PyTorch `.pt` weights natively. Developers no longer need to run complex `yolo export` commands to compile OpenVINO graphs before running the application.
-* **Enum Type Safety:** Camera sources are now strongly typed using the `SrcType` enum, preventing runtime crashes caused by string typos when switching between local files and live cameras.
-* **Auto-Initialization:** Required directories (like `data/saved_suspects`) are automatically verified and created on startup if they do not exist.
-
-### Key Environment Variables
-The video source values are loaded from the root `.env` file when the application starts:
-
-**Video Source Settings:**
-* `FOOTAGE_SRC_TYPE`: The input source type. Accepts `video`, `webcam`, or `live`.
-* `CURRENT_TEST_FOOTAGE`: The filename of the local video to analyze (e.g., `"knife.MOV"`). Reads from the `data/test_footages/` directory.
-* `WEBCAM_ID`: The hardware index of the local camera (default is `0`).
-* `LIVE_FEED_URL`: Network stream URL for IP cameras (e.g., `"rtsp://..."`).
-
-**Model Configuration:**
-* `WEAPON_MODEL_PATH` / `PERSON_MODEL_PATH`: Absolute paths to the YOLOv26 weights. Automatically resolved to the `models/` directory.
-
-**Mathematical Thresholds:**
-* `WEAPON_CONF`: Minimum confidence score required to confirm a weapon detection (Default: `0.60`).
-* `PERSON_CONF`: Minimum confidence score required to detect and track a person (Default: `0.45`).
-* `REID_THRESHOLD`: The matching threshold (0.0 to 1.0) for the HSV 3D color histogram. A higher number requires a stricter color match to re-identify a suspect who left the camera frame (Default: `0.75`).
-* `WEAPON_KEYWORDS`: List of allowed class names the threat detection model will actively flag (e.g., `'gun'`, `'knife'`, `'machine gun'`).
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! To maintain code quality, OpenI strictly enforces workflow rules via `.pre-commit-config.yaml`.
-
-### Workflow Guidelines
-
-1. **Fork and Branch:** Create a feature branch (`feature/your-feature`) or bugfix branch (`fix/issue-description`).
-2. **Branch Protection:** **Direct commits to the `main` or `master` branches are strictly prohibited.** You must submit a Pull Request.
-3. **Commit Standards:** We enforce [Conventional Commits](https://www.conventionalcommits.org/?utm_source=gemini). Your commit messages must follow the `type: description` format (e.g., `feat: add RTSP stream support`, `fix: resolve GUI crash`).
-4. **File Size Limits:** Git hooks will automatically reject any commits containing files `>= 5MB` to prevent bloating the repository with large `.pt` weights or video files. Use Git LFS or external storage for these.
-5. **Linting & Formatting:** Ruff is integrated into the pre-commit pipeline. Any code that violates PEP8 standards or line-length limits will automatically block the commit. Run `just format` before committing.
-
----
-
-## 👨‍💻 Developer Information
-
-This software was engineered as the IoT project for the Digital Control Systems module, a core component of the Bachelor of Honors in Information and Communication Technology (BICT) degree program at the University of Sri Jayewardenepura.
-
-* **Janindu Malshan** ([@imjanindu](https://github.com/imjanindu?utm_source=gemini)) - Lead System Architect & AI Developer
-* **Malith Banuka** ([@malithbanuka](https://www.google.com/search?q=https://github.com/malithbanuka&utm_source=gemini)) - DevOps & Workflow Automation Engineer
-
-*Engineered with a focus on modularity, real-time performance, and scalable computer vision design.*
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See the `LICENSE` file for full details.
