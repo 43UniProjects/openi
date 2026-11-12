@@ -129,6 +129,12 @@ class SecurityDashboard:
                 )
                 self._clock_label = ui.label("").classes("text-slate-400 text-sm font-mono")
                 self._status_badge = ui.badge("LIVE", color="red").classes("animate-pulse")
+                ui.button(
+                    "Stop System",
+                    icon="power_settings_new",
+                    color="red",
+                    on_click=self._handle_ui_shutdown,
+                ).props("size=sm outline dense").classes("text-xs font-semibold")
 
         # ─── Main Content Container ─────────────────────────────
         with ui.column().classes("w-full max-w-[1700px] mx-auto px-4 py-6 gap-6"):
@@ -452,6 +458,18 @@ class SecurityDashboard:
     def _update_clock(self):
         self._clock_label.set_text(datetime.now().strftime("%Y-%m-%d  %H:%M:%S"))
 
+    async def _handle_ui_shutdown(self):
+        """Cleanly stops AI processing and terminates the application from the UI."""
+        import os
+
+        ui.notify("Stopping OpenI Security System...", type="warning", position="top")
+        logger.info("Shutdown requested from UI dashboard button.")
+        if self.engine is not None:
+            self.engine.stop()
+        await asyncio.sleep(0.3)
+        app.shutdown()
+        os._exit(0)
+
 
 def launch_dashboard(
     engine: SecurityEngine | None = None,
@@ -472,6 +490,7 @@ def launch_dashboard(
         favicon="🔒",
         dark=True,
         reload=False,
+        timeout_graceful_shutdown=0.5,
     )
 
 
