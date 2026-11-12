@@ -1,4 +1,3 @@
-```markdown
 # OpenI — Contributor Setup & Run Guide
 
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
@@ -179,7 +178,3 @@ Git hooks via `pre-commit` are automatically installed during `just setup` and w
 * **Malith Banuka** ([@malithbanuka](https://www.google.com/search?q=https://github.com/malithbanuka))
 
 Licensed under the **MIT License**. See `LICENSE` for details.
-
-```
-
-```
