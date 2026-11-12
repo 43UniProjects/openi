@@ -51,9 +51,9 @@ dependencies = [
     "torch==2.14.0",
     "torchvision==0.29.0",
     "typing_extensions==4.16.0",
-    "ultralytics==8.4.156",
-    "ultralytics-platform==0.1.48",
-    "ultralytics-thop==2.1.6",
+    "ultralytics>=8.4.209",
+    "ultralytics-platform>=0.1.48",
+    "ultralytics-thop>=2.2.4",
     "urllib3==2.8.0"
 ]
 
