@@ -1,17 +1,16 @@
 """
 Mock IoT sensor data provider for the OpenI Museum Security System.
 
-Simulates real-time readings from museum-grade sensors:
-  - Temperature & Humidity (DHT22 style)
-  - PIR Motion Sensors (per-zone)
-  - Door/Window Contact Sensors (magnetic reed)
-  - Smoke / Gas Detectors
-  - Vibration Sensors (artifact display cases)
-
-All values fluctuate realistically around configurable baselines.
-When the system connects to real hardware (ESP32 / Raspberry Pi),
-swap this module for the actual MQTT or serial reader.
+Simulates real hardware sensors connected via microcontrollers (e.g., ESP32 / Arduino):
+  1. PIR Motion Sensor (HC-SR501) — Perimeter & zone motion
+  2. Climate Temperature (DHT22) — Gallery climate control
+  3. Climate Humidity (DHT22) — Gallery relative humidity
+  4. Gas & Smoke Detector (MQ-2) — Smoke / hazardous fumes detection
+  5. Magnetic Door Contact (Reed Switch) — Vault / restricted door breach
+  6. Piezo Vibration Sensor (SW-420) — Exhibit glass & display case impact
 """
+
+from __future__ import annotations
 
 import random
 import time
@@ -23,181 +22,154 @@ class SensorStatus(str, Enum):
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
-    OFFLINE = "offline"
-
-
-class ZoneID(str, Enum):
-    MAIN_HALL = "Main Hall"
-    GALLERY_A = "Gallery A"
-    GALLERY_B = "Gallery B"
-    ENTRANCE = "Entrance"
-    STORAGE = "Storage Room"
-    CORRIDOR = "Corridor"
 
 
 @dataclass
-class SensorReading:
-    sensor_id: str
-    sensor_type: str
-    zone: str
-    value: float
+class HardwareSensor:
+    id: str
+    name: str
+    hardware_model: str
+    location: str
+    value: float | str
     unit: str
     status: SensorStatus
-    timestamp: float = field(default_factory=time.time)
+    icon: str
+    color: str
+    updated_at: float = field(default_factory=time.time)
 
 
 class MockSensorProvider:
-    """Generates realistic fluctuating sensor data for the dashboard."""
+    """Simulates realistic micro-fluctuations for physical IoT hardware."""
 
     def __init__(self):
-        self._baselines = {
-            "temperature": 22.5,  # °C — ideal museum climate
-            "humidity": 45.0,  # %RH
-            "vibration": 0.02,  # g (acceleration)
-        }
-        self._motion_zones = {z: False for z in ZoneID}
-        self._door_zones = {
-            ZoneID.ENTRANCE: True,  # open during hours
-            ZoneID.STORAGE: False,  # should stay closed
-            ZoneID.MAIN_HALL: True,
-        }
-        self._smoke_level = 0.0  # ppm
+        self._temp = 22.4
+        self._hum = 46.5
+        self._smoke = 0.08
+        self._vibration = 0.012
+        self._door_open = False
+        self._motion_detected = False
         self._tick = 0
 
-    # ── Public API ──────────────────────────────────────────────
-
-    def read_all(self) -> list[SensorReading]:
-        """Return a snapshot of every sensor in the museum."""
+    def read_all(self) -> list[HardwareSensor]:
+        """Returns snapshot of the 6 primary physical IoT sensors."""
         self._tick += 1
-        readings: list[SensorReading] = []
 
-        # Temperature sensors (one per zone)
-        for zone in ZoneID:
-            temp = self._jitter(self._baselines["temperature"], sigma=0.4)
-            readings.append(
-                SensorReading(
-                    sensor_id=f"TEMP-{zone.name[:3]}",
-                    sensor_type="Temperature",
-                    zone=zone.value,
-                    value=round(temp, 1),
-                    unit="°C",
-                    status=self._threshold(temp, low=18, high=26, crit_high=30),
-                )
-            )
+        # 1. PIR Motion Sensor
+        # ~10% probability of motion
+        if random.random() < 0.12:
+            self._motion_detected = not self._motion_detected
+        pir_status = SensorStatus.WARNING if self._motion_detected else SensorStatus.NORMAL
 
-        # Humidity sensors (one per zone)
-        for zone in ZoneID:
-            hum = self._jitter(self._baselines["humidity"], sigma=2.0)
-            readings.append(
-                SensorReading(
-                    sensor_id=f"HUM-{zone.name[:3]}",
-                    sensor_type="Humidity",
-                    zone=zone.value,
-                    value=round(hum, 1),
-                    unit="%RH",
-                    status=self._threshold(hum, low=30, high=60, crit_high=70),
-                )
-            )
-
-        # PIR motion sensors
-        for zone in ZoneID:
-            # ~15 % chance of motion each tick
-            motion = random.random() < 0.15
-            self._motion_zones[zone] = motion
-            readings.append(
-                SensorReading(
-                    sensor_id=f"PIR-{zone.name[:3]}",
-                    sensor_type="Motion",
-                    zone=zone.value,
-                    value=1.0 if motion else 0.0,
-                    unit="detected" if motion else "clear",
-                    status=SensorStatus.WARNING if motion else SensorStatus.NORMAL,
-                )
-            )
-
-        # Door contact sensors
-        for zone, default_open in self._door_zones.items():
-            # Small chance the door state flips
-            if random.random() < 0.05:
-                self._door_zones[zone] = not self._door_zones[zone]
-            is_open = self._door_zones[zone]
-            # Storage door open is critical
-            is_critical = zone == ZoneID.STORAGE and is_open
-            readings.append(
-                SensorReading(
-                    sensor_id=f"DOOR-{zone.name[:3]}",
-                    sensor_type="Door Contact",
-                    zone=zone.value,
-                    value=1.0 if is_open else 0.0,
-                    unit="OPEN" if is_open else "CLOSED",
-                    status=(SensorStatus.CRITICAL if is_critical else SensorStatus.NORMAL),
-                )
-            )
-
-        # Smoke detector (building-wide)
-        self._smoke_level = max(0, self._jitter(self._smoke_level, sigma=0.3))
-        # Very rare spike to simulate false alarm
-        if random.random() < 0.01:
-            self._smoke_level = random.uniform(5, 15)
-        readings.append(
-            SensorReading(
-                sensor_id="SMOKE-BLD",
-                sensor_type="Smoke",
-                zone="Building-Wide",
-                value=round(self._smoke_level, 2),
-                unit="ppm",
-                status=self._threshold(self._smoke_level, low=-1, high=5, crit_high=10),
-            )
+        # 2. Temperature (DHT22)
+        self._temp = round(self._temp + random.gauss(0, 0.15), 1)
+        self._temp = max(18.0, min(32.0, self._temp))
+        temp_status = (
+            SensorStatus.CRITICAL
+            if self._temp > 29
+            else (SensorStatus.WARNING if self._temp > 26 else SensorStatus.NORMAL)
         )
 
-        # Vibration sensors on display cases
-        for zone in [ZoneID.MAIN_HALL, ZoneID.GALLERY_A, ZoneID.GALLERY_B]:
-            vib = abs(self._jitter(self._baselines["vibration"], sigma=0.01))
-            readings.append(
-                SensorReading(
-                    sensor_id=f"VIB-{zone.name[:3]}",
-                    sensor_type="Vibration",
-                    zone=zone.value,
-                    value=round(vib, 4),
-                    unit="g",
-                    status=self._threshold(vib, low=-1, high=0.08, crit_high=0.15),
-                )
-            )
+        # 3. Humidity (DHT22)
+        self._hum = round(self._hum + random.gauss(0, 0.3), 1)
+        self._hum = max(30.0, min(75.0, self._hum))
+        hum_status = (
+            SensorStatus.WARNING if self._hum > 60 or self._hum < 35 else SensorStatus.NORMAL
+        )
 
-        return readings
+        # 4. MQ-2 Smoke Detector
+        self._smoke = max(0.01, round(self._smoke + random.gauss(0, 0.04), 2))
+        smoke_status = (
+            SensorStatus.CRITICAL
+            if self._smoke > 3.0
+            else (SensorStatus.WARNING if self._smoke > 1.2 else SensorStatus.NORMAL)
+        )
+
+        # 5. Door Reed Switch
+        if random.random() < 0.03:
+            self._door_open = not self._door_open
+        door_status = SensorStatus.CRITICAL if self._door_open else SensorStatus.NORMAL
+
+        # 6. Piezo Vibration
+        self._vibration = max(0.001, round(abs(random.gauss(0.015, 0.006)), 3))
+        vib_status = (
+            SensorStatus.CRITICAL
+            if self._vibration > 0.08
+            else (SensorStatus.WARNING if self._vibration > 0.04 else SensorStatus.NORMAL)
+        )
+
+        return [
+            HardwareSensor(
+                id="PIR-01",
+                name="Perimeter Motion",
+                hardware_model="HC-SR501",
+                location="Main Gallery",
+                value="ACTIVE" if self._motion_detected else "CLEAR",
+                unit="",
+                status=pir_status,
+                icon="radar",
+                color="#f59e0b" if self._motion_detected else "#10b981",
+            ),
+            HardwareSensor(
+                id="DHT-T1",
+                name="Ambient Temp",
+                hardware_model="DHT22",
+                location="Artifact Hall",
+                value=f"{self._temp}",
+                unit="°C",
+                status=temp_status,
+                icon="device_thermostat",
+                color="#38bdf8",
+            ),
+            HardwareSensor(
+                id="DHT-H1",
+                name="Humidity",
+                hardware_model="DHT22",
+                location="Vault Room",
+                value=f"{self._hum}",
+                unit="%",
+                status=hum_status,
+                icon="water_drop",
+                color="#818cf8",
+            ),
+            HardwareSensor(
+                id="MQ2-01",
+                name="Smoke / Gas",
+                hardware_model="MQ-2",
+                location="Central Hall",
+                value=f"{self._smoke}",
+                unit="ppm",
+                status=smoke_status,
+                icon="air",
+                color="#ef4444" if smoke_status == SensorStatus.CRITICAL else "#22c55e",
+            ),
+            HardwareSensor(
+                id="REED-01",
+                name="Vault Door",
+                hardware_model="Reed Switch",
+                location="Restricted Vault",
+                value="BREACHED" if self._door_open else "LOCKED",
+                unit="",
+                status=door_status,
+                icon="lock_open" if self._door_open else "lock",
+                color="#ef4444" if self._door_open else "#10b981",
+            ),
+            HardwareSensor(
+                id="VIB-01",
+                name="Case Vibration",
+                hardware_model="SW-420 Piezo",
+                location="Display #04",
+                value=f"{self._vibration}",
+                unit="g",
+                status=vib_status,
+                icon="vibration",
+                color="#a855f7",
+            ),
+        ]
 
     def get_summary(self) -> dict:
-        """Return aggregate counts for quick dashboard cards."""
-        readings = self.read_all()
-        total = len(readings)
-        normal = sum(1 for r in readings if r.status == SensorStatus.NORMAL)
-        warning = sum(1 for r in readings if r.status == SensorStatus.WARNING)
-        critical = sum(1 for r in readings if r.status == SensorStatus.CRITICAL)
-        motion_zones = [z.value for z, m in self._motion_zones.items() if m]
+        sensors = self.read_all()
         return {
-            "total_sensors": total,
-            "normal": normal,
-            "warning": warning,
-            "critical": critical,
-            "motion_zones": motion_zones,
-            "readings": readings,
+            "sensors": sensors,
+            "has_critical": any(s.status == SensorStatus.CRITICAL for s in sensors),
+            "has_warning": any(s.status == SensorStatus.WARNING for s in sensors),
         }
-
-    # ── Internal helpers ────────────────────────────────────────
-
-    @staticmethod
-    def _jitter(base: float, sigma: float = 1.0) -> float:
-        return base + random.gauss(0, sigma)
-
-    @staticmethod
-    def _threshold(
-        value: float,
-        low: float,
-        high: float,
-        crit_high: float,
-    ) -> SensorStatus:
-        if value >= crit_high:
-            return SensorStatus.CRITICAL
-        if value >= high or value <= low:
-            return SensorStatus.WARNING
-        return SensorStatus.NORMAL
