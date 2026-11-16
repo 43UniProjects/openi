@@ -1,10 +1,10 @@
 """
-OpenI Museum Security — Integrated Cyber Defense Dashboard
+OpenI Museum Security — Tactical Cyber Defense Command Center
 
-A high-tech, single-viewport (no-scroll) tactical security command center:
-  • Live AI surveillance stream (dual YOLOv26 inference with suspect & weapon tracking)
-  • Physical hardware sensor telemetry (PIR motion, DHT22 climate, MQ-2 smoke, Reed contact, SW-420 piezo)
-  • Real-time tactical incident log
+A robust, 100% single-screen (zero-scroll) dashboard layout:
+  • Header: OpenI Cyber-Aperture logo, Defense Level banner, System Clock, Live feed tag
+  • Upper Area: AI Vision Stream (YOLOv26) with Telemetry HUD + Tactical Incident Stream
+  • Bottom Area: 6 Physical Hardware Sensors with prominent, crisp values & status
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from openi.iot.sensors import HardwareSensor, MockSensorProvider, SensorStatus
 
 REFRESH_INTERVAL = 2.0
 
-# Global engine reference for MJPEG endpoint
+# Global engine reference for the MJPEG endpoint
 _GLOBAL_ENGINE: SecurityEngine | None = None
 
 
@@ -72,19 +72,20 @@ class SecurityDashboard:
         self._status_container: ui.element | None = None
         self._clock_label: ui.label | None = None
         self._log_element: ui.log | None = None
-        self._sensor_container: ui.element | None = None
+
+        # Static card bindings to guarantee zero flicker / instant display
+        self._sensor_ui: dict[str, dict] = {}
 
         self._build()
 
     def _build(self):
         ui.dark_mode().enable()
-        ui.colors(primary="#0a0f1d", secondary="#111c33", accent="#06b6d4")
 
-        # Global styles: strict single-viewport, custom scrollbars, futuristic fonts
+        # Global layout styling — lock strictly to 100vh with no scrollbars
         ui.add_head_html(
             """
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
                 * { box-sizing: border-box; }
                 html, body {
@@ -93,140 +94,121 @@ class SecurityDashboard:
                     width: 100vw !important;
                     margin: 0 !important;
                     padding: 0 !important;
-                    background-color: #050811 !important;
+                    background-color: #040711 !important;
                     font-family: 'JetBrains Mono', monospace;
                     user-select: none;
                 }
+                .q-header { display: none !important; }
+                .q-page-container { padding: 0 !important; }
                 .nicegui-content {
                     padding: 0 !important;
+                    margin: 0 !important;
                     height: 100vh !important;
-                    display: flex !important;
-                    flex-direction: column !important;
+                    width: 100vw !important;
+                    overflow: hidden !important;
                 }
                 .font-brand {
                     font-family: 'Chakra Petch', sans-serif;
                 }
-                /* Custom futuristic scrollbar for incident log */
                 ::-webkit-scrollbar {
-                    width: 5px;
+                    width: 4px;
                 }
                 ::-webkit-scrollbar-track {
-                    background: #090e1a;
+                    background: #070b16;
                 }
                 ::-webkit-scrollbar-thumb {
                     background: #1e293b;
-                    border-radius: 3px;
-                }
-                ::-webkit-scrollbar-thumb:hover {
-                    background: #0ea5e9;
-                }
-                .glow-border-cyan {
-                    box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
-                }
-                .glow-border-red {
-                    box-shadow: 0 0 20px rgba(239, 68, 68, 0.35);
+                    border-radius: 2px;
                 }
             </style>
             """
         )
 
-        # ─── Top Tactical Navigation Bar ────────────────────────
-        with ui.header().classes(
-            "bg-[#080d1a]/90 backdrop-blur-md text-white items-center justify-between "
-            "border-b border-cyan-500/20 px-6 py-2 shadow-2xl h-[52px] z-50"
+        # ─── Master Single-Screen Layout Container ──────────────
+        with ui.element("div").classes(
+            "w-screen h-screen flex flex-col bg-[#040711] p-2 gap-2 overflow-hidden"
         ):
-            # Creative OpenI Cyber Aperture Logo
-            with ui.row().classes("items-center gap-3"):
+            # ── 1. Top Tactical Navigation Bar (Fixed 44px) ─────
+            with ui.element("div").classes(
+                "w-full h-[44px] bg-[#080d1a] border border-cyan-500/20 rounded-lg px-4 "
+                "flex items-center justify-between shadow-lg shrink-0"
+            ):
+                # Creative OpenI Cyber Aperture Logo
                 ui.html(
                     """
                     <div class="flex items-center gap-2.5">
-                        <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-950/40 border border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.4)]">
-                            <svg class="w-5 h-5 text-cyan-400 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="3" fill="currentColor" fill-opacity="0.3"></circle>
+                        <div class="relative flex items-center justify-center w-7 h-7 rounded bg-cyan-950/60 border border-cyan-400/50 shadow-[0_0_10px_rgba(6,182,212,0.4)]">
+                            <svg class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3" fill="currentColor" fill-opacity="0.4"></circle>
                                 <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
-                                <circle cx="12" cy="12" r="6" stroke-dasharray="2 3"></circle>
                             </svg>
                         </div>
                         <div class="flex flex-col leading-none">
-                            <span class="font-brand font-black text-lg tracking-[0.18em] text-white">
+                            <span class="font-brand font-black text-base tracking-[0.18em] text-white">
                                 OPEN<span class="text-cyan-400">I</span>
                             </span>
-                            <span class="text-[8px] font-mono tracking-[0.25em] text-cyan-500/70 font-semibold uppercase">
-                                AI Tactical Defense
+                            <span class="text-[7.5px] font-mono tracking-[0.22em] text-cyan-400/70 uppercase">
+                                Autonomous Defense
                             </span>
                         </div>
                     </div>
                     """
                 )
 
-            # Central Threat Level Indicator
-            self._status_container = ui.element("div").classes("flex items-center")
-            self._render_status_banner(is_threat=False)
+                # Central Threat Level Indicator
+                self._status_container = ui.element("div").classes("flex items-center")
+                self._render_status_banner(is_threat=False)
 
-            # System Clock & Live Status
-            with ui.row().classes("items-center gap-4"):
-                self._clock_label = ui.label("").classes(
-                    "text-slate-400 text-xs font-mono tracking-wider"
-                )
-                ui.html(
-                    """
-                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-950/40 border border-red-500/40">
-                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-                        <span class="text-[10px] font-bold text-red-400 tracking-widest font-mono">LIVE FEED</span>
-                    </div>
-                    """
-                )
-
-        # ─── Main Viewport Body (Zero Scroll) ───────────────────
-        with (
-            ui.element("div")
-            .classes("w-full flex-grow flex flex-col gap-2.5 p-2.5 bg-[#050811] overflow-hidden")
-            .style("height: calc(100vh - 52px);")
-        ):
-            # Upper Row: Camera (70%) + Incident Log (30%) — dynamically fills remaining vertical space
-            with (
-                ui.element("div")
-                .classes("flex gap-2.5 w-full")
-                .style("flex: 1; min-height: 0; overflow: hidden;")
-            ):
-                # ── Left: AI Surveillance Monitor ───────────────
-                with (
-                    ui.element("div")
-                    .classes(
-                        "flex-[2.8] bg-[#090e1a] border border-slate-800 rounded-xl "
-                        "p-2.5 flex flex-col shadow-xl overflow-hidden"
+                # System Clock & Live Status Tag
+                with ui.row().classes("items-center gap-3"):
+                    self._clock_label = ui.label("").classes(
+                        "text-slate-400 text-xs font-mono tracking-wider"
                     )
-                    .style("min-height: 0;")
-                ):
-                    # Camera Header & Telemetry
-                    with ui.row().classes(
-                        "items-center justify-between w-full mb-1.5 px-1 shrink-0"
-                    ):
-                        with ui.row().classes("items-center gap-2"):
-                            ui.html(
-                                '<span class="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]"></span>'
-                            )
-                            ui.label("NEURAL THREAT STREAM").classes(
-                                "text-xs font-bold text-slate-200 tracking-wider font-brand"
-                            )
-                        self._source_label = ui.label(self.engine.source_label).classes(
-                            "text-[10px] text-cyan-400/70 font-mono bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40"
-                        )
-
-                    # Video Viewport Container (Absolute Fill — Cannot expand or push layout down)
                     ui.html(
                         """
-                        <div style="flex: 1; min-height: 0; position: relative; width: 100%; overflow: hidden; border-radius: 8px; border: 1px solid rgba(51, 65, 85, 0.7); background-color: #000000; display: flex; align-items: center; justify-content: center;">
-                            <img src="/video_stream"
-                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"
-                                 alt="Live AI Video Stream" />
+                        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-950/40 border border-red-500/40">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                            <span class="text-[9px] font-bold text-red-400 tracking-wider font-mono">LIVE FEED</span>
                         </div>
                         """
                     )
 
-                    # Telemetry HUD Bar (Fixed compact height at bottom of video card)
+            # ── 2. Middle Row: Video (70%) + Incident Log (30%) ──
+            # Takes 100% of the remaining vertical space dynamically
+            with ui.element("div").classes("w-full flex gap-2 flex-1 min-h-0 overflow-hidden"):
+                # ── Left: AI Surveillance Monitor ───────────────
+                with ui.element("div").classes(
+                    "flex-[2.8] bg-[#080d1a] border border-slate-800 rounded-lg p-2 "
+                    "flex flex-col shadow-xl min-h-0 overflow-hidden"
+                ):
+                    # Monitor Header
+                    with ui.row().classes("items-center justify-between w-full mb-1 shrink-0 px-1"):
+                        with ui.row().classes("items-center gap-1.5"):
+                            ui.html(
+                                '<span class="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]"></span>'
+                            )
+                            ui.label("AI THREAT DETECTION FEED").classes(
+                                "text-[11px] font-bold text-slate-200 tracking-wider font-brand"
+                            )
+                        self._source_label = ui.label(self.engine.source_label).classes(
+                            "text-[9px] text-cyan-400/80 font-mono bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40"
+                        )
+
+                    # Video Viewport (Absolute Containment - Zero layout pushing)
+                    with ui.element("div").classes(
+                        "relative w-full flex-1 min-h-0 rounded border border-slate-800/80 bg-black overflow-hidden flex items-center justify-center"
+                    ):
+                        ui.html(
+                            """
+                            <img src="/video_stream"
+                                 style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;"
+                                 alt="Live AI Video Stream" />
+                            """
+                        )
+
+                    # Telemetry HUD Bar (Compact bottom bar)
                     with ui.row().classes(
-                        "w-full bg-[#060a14] mt-1.5 px-4 py-1.5 rounded-lg border border-slate-800/70 "
+                        "w-full bg-[#050811] mt-1.5 px-3 py-1 rounded border border-slate-800/80 "
                         "justify-between items-center text-center shrink-0"
                     ):
                         hud_metrics = [
@@ -238,73 +220,111 @@ class SecurityDashboard:
                         for key, label, default, color in hud_metrics:
                             with ui.column().classes("gap-0 items-center"):
                                 ui.label(label).classes(
-                                    "text-[9px] text-slate-400 tracking-wider font-semibold"
+                                    "text-[8.5px] text-slate-400 tracking-wider font-semibold"
                                 )
                                 self._cam_stats[key] = (
                                     ui.label(default)
-                                    .classes("text-sm font-bold font-mono tracking-tight")
+                                    .classes("text-xs font-bold font-mono")
                                     .style(f"color: {color};")
                                 )
 
                 # ── Right: Tactical Incident Stream ─────────────
-                with (
-                    ui.element("div")
-                    .classes(
-                        "flex-[1.2] bg-[#090e1a] border border-slate-800 rounded-xl "
-                        "p-2.5 flex flex-col shadow-xl overflow-hidden"
-                    )
-                    .style("min-height: 0;")
+                with ui.element("div").classes(
+                    "flex-[1.2] bg-[#080d1a] border border-slate-800 rounded-lg p-2 "
+                    "flex flex-col shadow-xl min-h-0 overflow-hidden"
                 ):
                     with ui.row().classes(
-                        "items-center justify-between pb-1.5 border-b border-slate-800 shrink-0"
+                        "items-center justify-between pb-1 border-b border-slate-800 shrink-0"
                     ):
-                        with ui.row().classes("items-center gap-2"):
+                        with ui.row().classes("items-center gap-1.5"):
                             ui.html(
-                                '<span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]"></span>'
+                                '<span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>'
                             )
                             ui.label("INCIDENT & THREAT FEED").classes(
-                                "text-xs font-bold text-slate-200 tracking-wider font-brand"
+                                "text-[11px] font-bold text-slate-200 tracking-wider font-brand"
                             )
                         ui.label("REALTIME").classes(
-                            "text-[9px] text-slate-500 font-mono font-bold"
+                            "text-[8.5px] text-slate-500 font-mono font-bold"
                         )
 
-                    self._log_element = (
-                        ui.log(max_lines=60)
-                        .classes(
-                            "bg-[#04060c] text-slate-300 p-2 mt-1.5 rounded-lg font-mono text-[11px] "
-                            "border border-slate-800/60 leading-relaxed"
-                        )
-                        .style("flex: 1; min-height: 0; overflow-y: auto;")
+                    self._log_element = ui.log(max_lines=60).classes(
+                        "bg-[#04060c] text-slate-300 p-2 mt-1 rounded font-mono text-[10px] "
+                        "border border-slate-800/60 leading-relaxed flex-1 min-h-0 overflow-y-auto"
                     )
 
-            # ── Lower Row: Physical Hardware Telemetry (LOCKED HEIGHT, CANNOT BE PUSHED DOWN) ──
-            with (
-                ui.element("div")
-                .classes(
-                    "w-full bg-[#090e1a] border border-slate-800 rounded-xl p-2.5 flex flex-col shadow-xl shrink-0"
-                )
-                .style("height: 140px; min-height: 140px; max-height: 140px; overflow: hidden;")
+            # ── 3. Bottom Row: 6 Hardware Telemetry Cards (Fixed 130px) ──
+            # Locked height guaranteed to never get pushed off-screen
+            with ui.element("div").classes(
+                "w-full h-[130px] min-h-[130px] max-h-[130px] bg-[#080d1a] border border-slate-800 "
+                "rounded-lg p-2 flex flex-col shadow-xl shrink-0 overflow-hidden"
             ):
-                with ui.row().classes("items-center justify-between w-full mb-1.5 px-1 shrink-0"):
-                    with ui.row().classes("items-center gap-2"):
+                with ui.row().classes("items-center justify-between w-full mb-1 shrink-0 px-1"):
+                    with ui.row().classes("items-center gap-1.5"):
                         ui.html(
-                            '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"></span>'
+                            '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>'
                         )
                         ui.label("PERIMETER & ENVIRONMENTAL TELEMETRY").classes(
-                            "text-xs font-bold text-slate-200 tracking-wider font-brand"
+                            "text-[11px] font-bold text-slate-200 tracking-wider font-brand"
                         )
                     ui.label("HARDWARE BUS: ONLINE").classes(
-                        "text-[9px] text-emerald-400/80 font-mono font-bold tracking-widest"
+                        "text-[8.5px] text-emerald-400/80 font-mono font-bold tracking-widest"
                     )
 
-                # Exactly 6 high-contrast, large-readout sensor cards
-                self._sensor_container = ui.element("div").classes(
-                    "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 w-full flex-grow overflow-hidden"
-                )
+                # Pre-build 6 stable cards with permanent DOM handles
+                with ui.element("div").classes(
+                    "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 w-full flex-1 overflow-hidden"
+                ):
+                    initial_sensors = self.sensor_provider.read_all()
+                    for s in initial_sensors:
+                        card_box = (
+                            ui.element("div")
+                            .classes(
+                                "rounded px-2.5 py-1.5 flex flex-col justify-between border bg-[#040711]"
+                            )
+                            .style(f"border-color: #1e293b; border-left: 3.5px solid {s.color};")
+                        )
+                        with card_box:
+                            # Header
+                            with ui.row().classes("items-center justify-between w-full"):
+                                ui.label(s.name).classes(
+                                    "text-[10px] font-bold text-slate-200 font-brand truncate"
+                                )
+                                ui.icon(s.icon, size="xs").style(f"color: {s.color};")
+
+                            # Subtitle / Model
+                            ui.label(f"{s.hardware_model} • {s.location}").classes(
+                                "text-[8px] text-slate-400 font-mono truncate"
+                            )
+
+                            # Big Value Readout
+                            with ui.row().classes("items-baseline gap-1 my-0.5"):
+                                val_lbl = (
+                                    ui.label(str(s.value))
+                                    .classes("text-lg font-black font-mono")
+                                    .style(f"color: {s.color};")
+                                )
+                                unit_lbl = ui.label(s.unit).classes(
+                                    "text-[10px] text-slate-400 font-mono"
+                                )
+
+                            # Bottom status badge
+                            with ui.row().classes(
+                                "items-center justify-between w-full pt-0.5 border-t border-slate-800/60"
+                            ):
+                                ui.label(s.id).classes("text-[8px] text-slate-500 font-mono")
+                                status_lbl = ui.label("NORMAL").classes(
+                                    "text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-emerald-400 bg-emerald-950/40 border-emerald-800"
+                                )
+
+                        self._sensor_ui[s.id] = {
+                            "val": val_lbl,
+                            "unit": unit_lbl,
+                            "status": status_lbl,
+                            "card": card_box,
+                            "color": s.color,
+                        }
 
         # Periodic Event Timers
-        self._refresh_hardware_sensors()
         ui.timer(REFRESH_INTERVAL, self._refresh_hardware_sensors)
         ui.timer(0.4, self._sync_engine_telemetry)
         ui.timer(1.0, self._update_clock)
@@ -317,8 +337,8 @@ class SecurityDashboard:
             if is_threat:
                 ui.html(
                     """
-                    <div class="flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-950/80 border border-red-500/70 text-red-400 text-xs font-mono font-bold animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.45)]">
-                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                    <div class="flex items-center gap-2 px-3 py-0.5 rounded-full bg-red-950/80 border border-red-500/70 text-red-400 text-xs font-mono font-bold animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.45)]">
+                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
                         <span>DEFENSE LEVEL: CRITICAL THREAT DETECTED</span>
                     </div>
                     """
@@ -326,7 +346,7 @@ class SecurityDashboard:
             else:
                 ui.html(
                     """
-                    <div class="flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold">
+                    <div class="flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold">
                         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                         <span>DEFENSE LEVEL: NOMINAL & SECURE</span>
                     </div>
@@ -353,83 +373,46 @@ class SecurityDashboard:
             if self._log_element:
                 self._log_element.push(f"🚨 {alert}")
 
-    # ── Hardware Sensor Display ─────────────────────────────────
+    # ── Hardware Sensor Display (Zero DOM Re-creation) ──────────
 
     def _refresh_hardware_sensors(self):
         sensors: list[HardwareSensor] = self.sensor_provider.read_all()
 
-        self._sensor_container.clear()
-        with self._sensor_container:
-            for s in sensors:
-                border_color = (
-                    "#ef4444"
+        for s in sensors:
+            if s.id in self._sensor_ui:
+                ui_entry = self._sensor_ui[s.id]
+                ui_entry["val"].set_text(str(s.value))
+                ui_entry["unit"].set_text(s.unit)
+
+                # Status text and class
+                status_text = (
+                    "CRITICAL"
                     if s.status == SensorStatus.CRITICAL
-                    else ("#f59e0b" if s.status == SensorStatus.WARNING else "#1e293b")
+                    else ("WARNING" if s.status == SensorStatus.WARNING else "NORMAL")
                 )
-                bg_glow = (
-                    "rgba(239, 68, 68, 0.1)"
-                    if s.status == SensorStatus.CRITICAL
-                    else (
-                        "rgba(245, 158, 11, 0.08)"
-                        if s.status == SensorStatus.WARNING
-                        else "#060a14"
-                    )
-                )
+                ui_entry["status"].set_text(status_text)
 
-                with (
-                    ui.element("div")
-                    .classes(
-                        "rounded-lg px-2.5 py-1.5 flex flex-col justify-between border transition-all duration-300"
+                if s.status == SensorStatus.CRITICAL:
+                    ui_entry["status"].classes(
+                        replace="text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-red-400 bg-red-950/60 border-red-800"
                     )
-                    .style(
-                        f"background-color: {bg_glow}; "
-                        f"border-color: {border_color}; "
-                        f"border-left: 4px solid {s.color};"
+                    ui_entry["card"].style(
+                        f"border-color: #ef4444; border-left: 3.5px solid {ui_entry['color']}; background-color: rgba(239, 68, 68, 0.1);"
                     )
-                ):
-                    # Top Row: Sensor Name + Hardware Model
-                    with ui.row().classes("items-center justify-between w-full"):
-                        ui.label(s.name).classes(
-                            "text-[10px] font-bold text-slate-200 tracking-tight font-brand truncate"
-                        )
-                        ui.icon(s.icon, size="xs").style(f"color: {s.color};")
-
-                    # Location / Hardware Tag
-                    ui.label(f"{s.hardware_model} • {s.location}").classes(
-                        "text-[8px] text-slate-400 font-mono tracking-tighter truncate"
+                elif s.status == SensorStatus.WARNING:
+                    ui_entry["status"].classes(
+                        replace="text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-amber-400 bg-amber-950/60 border-amber-800"
                     )
-
-                    # Prominent Big Sensor Value
-                    with ui.row().classes("items-baseline gap-1 my-0.5"):
-                        ui.label(str(s.value)).classes(
-                            "text-lg font-black font-mono tracking-tight"
-                        ).style(f"color: {s.color};")
-                        if s.unit:
-                            ui.label(s.unit).classes("text-[10px] text-slate-400 font-mono")
-
-                    # Bottom Status Badge
-                    status_text = (
-                        "CRITICAL"
-                        if s.status == SensorStatus.CRITICAL
-                        else ("WARNING" if s.status == SensorStatus.WARNING else "NORMAL")
+                    ui_entry["card"].style(
+                        f"border-color: #f59e0b; border-left: 3.5px solid {ui_entry['color']}; background-color: rgba(245, 158, 11, 0.08);"
                     )
-                    status_class = (
-                        "text-red-400 bg-red-950/60 border-red-800"
-                        if s.status == SensorStatus.CRITICAL
-                        else (
-                            "text-amber-400 bg-amber-950/60 border-amber-800"
-                            if s.status == SensorStatus.WARNING
-                            else "text-emerald-400 bg-emerald-950/40 border-emerald-800"
-                        )
+                else:
+                    ui_entry["status"].classes(
+                        replace="text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-emerald-400 bg-emerald-950/40 border-emerald-800"
                     )
-
-                    with ui.row().classes(
-                        "items-center justify-between w-full pt-1 border-t border-slate-800/60"
-                    ):
-                        ui.label(s.id).classes("text-[8px] text-slate-500 font-mono")
-                        ui.label(status_text).classes(
-                            f"text-[8px] font-bold font-mono px-1 py-0.2 rounded border {status_class}"
-                        )
+                    ui_entry["card"].style(
+                        f"border-color: #1e293b; border-left: 3.5px solid {ui_entry['color']}; background-color: #040711;"
+                    )
 
         # Check for critical sensor alerts to push to Incident Log
         for s in sensors:
