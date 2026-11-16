@@ -180,22 +180,28 @@ class SecurityDashboard:
         # ─── Main Viewport Body (Zero Scroll) ───────────────────
         with (
             ui.element("div")
-            .classes("w-full flex-grow flex flex-col gap-3 p-3 bg-[#050811] overflow-hidden")
+            .classes("w-full flex-grow flex flex-col gap-2.5 p-2.5 bg-[#050811] overflow-hidden")
             .style("height: calc(100vh - 52px);")
         ):
-            # Upper Row: Camera (68%) + Incident Log (32%)
-            with ui.element("div").classes("flex gap-3 w-full").style("flex: 7; min-height: 0;"):
+            # Upper Row: Camera (70%) + Incident Log (30%) — dynamically fills remaining vertical space
+            with (
+                ui.element("div")
+                .classes("flex gap-2.5 w-full")
+                .style("flex: 1; min-height: 0; overflow: hidden;")
+            ):
                 # ── Left: AI Surveillance Monitor ───────────────
                 with (
                     ui.element("div")
                     .classes(
                         "flex-[2.8] bg-[#090e1a] border border-slate-800 rounded-xl "
-                        "p-3 flex flex-col justify-between shadow-xl relative overflow-hidden"
+                        "p-2.5 flex flex-col shadow-xl overflow-hidden"
                     )
                     .style("min-height: 0;")
                 ):
                     # Camera Header & Telemetry
-                    with ui.row().classes("items-center justify-between w-full mb-1.5 px-1"):
+                    with ui.row().classes(
+                        "items-center justify-between w-full mb-1.5 px-1 shrink-0"
+                    ):
                         with ui.row().classes("items-center gap-2"):
                             ui.html(
                                 '<span class="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]"></span>'
@@ -207,26 +213,21 @@ class SecurityDashboard:
                             "text-[10px] text-cyan-400/70 font-mono bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40"
                         )
 
-                    # Video Viewport Container
-                    with (
-                        ui.element("div")
-                        .classes(
-                            "relative w-full rounded-lg border border-slate-800/90 bg-black flex items-center justify-center overflow-hidden"
-                        )
-                        .style("flex: 1; min-height: 0;")
-                    ):
-                        ui.html(
-                            """
+                    # Video Viewport Container (Absolute Fill — Cannot expand or push layout down)
+                    ui.html(
+                        """
+                        <div style="flex: 1; min-height: 0; position: relative; width: 100%; overflow: hidden; border-radius: 8px; border: 1px solid rgba(51, 65, 85, 0.7); background-color: #000000; display: flex; align-items: center; justify-content: center;">
                             <img src="/video_stream"
-                                 style="width: 100%; height: 100%; object-fit: contain;"
+                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"
                                  alt="Live AI Video Stream" />
-                            """
-                        )
+                        </div>
+                        """
+                    )
 
-                    # Telemetry HUD Bar
+                    # Telemetry HUD Bar (Fixed compact height at bottom of video card)
                     with ui.row().classes(
-                        "w-full bg-[#060a14] mt-2 px-4 py-2 rounded-lg border border-slate-800/70 "
-                        "justify-between items-center text-center"
+                        "w-full bg-[#060a14] mt-1.5 px-4 py-1.5 rounded-lg border border-slate-800/70 "
+                        "justify-between items-center text-center shrink-0"
                     ):
                         hud_metrics = [
                             ("fps", "INFERENCE FPS", "0.0", "#38bdf8"),
@@ -250,12 +251,12 @@ class SecurityDashboard:
                     ui.element("div")
                     .classes(
                         "flex-[1.2] bg-[#090e1a] border border-slate-800 rounded-xl "
-                        "p-3 flex flex-col shadow-xl"
+                        "p-2.5 flex flex-col shadow-xl overflow-hidden"
                     )
                     .style("min-height: 0;")
                 ):
                     with ui.row().classes(
-                        "items-center justify-between pb-2 border-b border-slate-800"
+                        "items-center justify-between pb-1.5 border-b border-slate-800 shrink-0"
                     ):
                         with ui.row().classes("items-center gap-2"):
                             ui.html(
@@ -271,21 +272,21 @@ class SecurityDashboard:
                     self._log_element = (
                         ui.log(max_lines=60)
                         .classes(
-                            "bg-[#04060c] text-slate-300 p-2.5 mt-2 rounded-lg font-mono text-[11px] "
+                            "bg-[#04060c] text-slate-300 p-2 mt-1.5 rounded-lg font-mono text-[11px] "
                             "border border-slate-800/60 leading-relaxed"
                         )
                         .style("flex: 1; min-height: 0; overflow-y: auto;")
                     )
 
-            # ── Lower Row: Physical Hardware Telemetry (32%) ──
+            # ── Lower Row: Physical Hardware Telemetry (LOCKED HEIGHT, CANNOT BE PUSHED DOWN) ──
             with (
                 ui.element("div")
                 .classes(
-                    "w-full bg-[#090e1a] border border-slate-800 rounded-xl p-3 flex flex-col shadow-xl"
+                    "w-full bg-[#090e1a] border border-slate-800 rounded-xl p-2.5 flex flex-col shadow-xl shrink-0"
                 )
-                .style("flex: 3; min-height: 0; overflow: hidden;")
+                .style("height: 140px; min-height: 140px; max-height: 140px; overflow: hidden;")
             ):
-                with ui.row().classes("items-center justify-between w-full mb-2 px-1"):
+                with ui.row().classes("items-center justify-between w-full mb-1.5 px-1 shrink-0"):
                     with ui.row().classes("items-center gap-2"):
                         ui.html(
                             '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"></span>'
@@ -298,12 +299,8 @@ class SecurityDashboard:
                     )
 
                 # Exactly 6 high-contrast, large-readout sensor cards
-                self._sensor_container = (
-                    ui.element("div")
-                    .classes(
-                        "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 w-full flex-grow"
-                    )
-                    .style("overflow: hidden;")
+                self._sensor_container = ui.element("div").classes(
+                    "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 w-full flex-grow overflow-hidden"
                 )
 
         # Periodic Event Timers
@@ -382,7 +379,7 @@ class SecurityDashboard:
                 with (
                     ui.element("div")
                     .classes(
-                        "rounded-lg p-2.5 flex flex-col justify-between border transition-all duration-300"
+                        "rounded-lg px-2.5 py-1.5 flex flex-col justify-between border transition-all duration-300"
                     )
                     .style(
                         f"background-color: {bg_glow}; "
@@ -393,22 +390,22 @@ class SecurityDashboard:
                     # Top Row: Sensor Name + Hardware Model
                     with ui.row().classes("items-center justify-between w-full"):
                         ui.label(s.name).classes(
-                            "text-[11px] font-bold text-slate-200 tracking-tight font-brand"
+                            "text-[10px] font-bold text-slate-200 tracking-tight font-brand truncate"
                         )
                         ui.icon(s.icon, size="xs").style(f"color: {s.color};")
 
                     # Location / Hardware Tag
                     ui.label(f"{s.hardware_model} • {s.location}").classes(
-                        "text-[9px] text-slate-400 font-mono tracking-tighter"
+                        "text-[8px] text-slate-400 font-mono tracking-tighter truncate"
                     )
 
                     # Prominent Big Sensor Value
-                    with ui.row().classes("items-baseline gap-1 my-1"):
+                    with ui.row().classes("items-baseline gap-1 my-0.5"):
                         ui.label(str(s.value)).classes(
-                            "text-xl font-black font-mono tracking-tight"
+                            "text-lg font-black font-mono tracking-tight"
                         ).style(f"color: {s.color};")
                         if s.unit:
-                            ui.label(s.unit).classes("text-xs text-slate-400 font-mono")
+                            ui.label(s.unit).classes("text-[10px] text-slate-400 font-mono")
 
                     # Bottom Status Badge
                     status_text = (
@@ -429,9 +426,9 @@ class SecurityDashboard:
                     with ui.row().classes(
                         "items-center justify-between w-full pt-1 border-t border-slate-800/60"
                     ):
-                        ui.label(s.id).classes("text-[9px] text-slate-500 font-mono")
+                        ui.label(s.id).classes("text-[8px] text-slate-500 font-mono")
                         ui.label(status_text).classes(
-                            f"text-[8px] font-bold font-mono px-1.5 py-0.5 rounded border {status_class}"
+                            f"text-[8px] font-bold font-mono px-1 py-0.2 rounded border {status_class}"
                         )
 
         # Check for critical sensor alerts to push to Incident Log
