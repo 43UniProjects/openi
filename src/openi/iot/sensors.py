@@ -1,203 +1,348 @@
 """
-Mock IoT sensor data provider for the OpenI Museum Security System.
+OpenI Museum Security — IoT Sensor Telemetry Provider.
 
-Simulates real-time readings from museum-grade sensors:
-  - Temperature & Humidity (DHT22 style)
-  - PIR Motion Sensors (per-zone)
-  - Door/Window Contact Sensors (magnetic reed)
-  - Smoke / Gas Detectors
-  - Vibration Sensors (artifact display cases)
-
-All values fluctuate realistically around configurable baselines.
-When the system connects to real hardware (ESP32 / Raspberry Pi),
-swap this module for the actual MQTT or serial reader.
+Supports both:
+  1. Real ESP32 Hardware via USB Serial (pyserial reading JSON packets)
+  2. High-fidelity Physical Simulation of the exact OpenI project hardware kit:
+     • Load Cell (5kg Aluminum Block) + HX711 Amplifier Module
+     • Laser Diode Emitter (KY-008) + Laser Receiver (GL5528 LDR)
+     • Ambient Optical Sensor (GL5528 Photocell Divider)
+     • Active Buzzer (3.3V/5V driven by 2N2222 NPN Transistor)
+     • Tri-Color Alert LEDs (5mm Red / Green / Blue with 220Ω limiters)
+     • ESP32 Development Board (38-pin NodeMCU-32S Master Controller)
 """
 
+from __future__ import annotations
+
+import json
+import os
 import random
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+
+from openi.core.logger import logger
+
+try:
+    import serial
+    import serial.tools.list_ports
+
+    PYSERIAL_AVAILABLE = True
+except ImportError:
+    PYSERIAL_AVAILABLE = False
 
 
 class SensorStatus(str, Enum):
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
-    OFFLINE = "offline"
-
-
-class ZoneID(str, Enum):
-    MAIN_HALL = "Main Hall"
-    GALLERY_A = "Gallery A"
-    GALLERY_B = "Gallery B"
-    ENTRANCE = "Entrance"
-    STORAGE = "Storage Room"
-    CORRIDOR = "Corridor"
 
 
 @dataclass
-class SensorReading:
-    sensor_id: str
-    sensor_type: str
-    zone: str
-    value: float
+class HardwareSensor:
+    id: str
+    name: str
+    hardware_model: str
+    location: str
+    value: float | str
     unit: str
     status: SensorStatus
-    timestamp: float = field(default_factory=time.time)
+    icon: str
+    color: str
+    updated_at: float = field(default_factory=time.time)
 
 
-class MockSensorProvider:
-    """Generates realistic fluctuating sensor data for the dashboard."""
+class OpenISensorProvider:
+    """Unified IoT provider supporting real ESP32 serial communication & simulation."""
 
-    def __init__(self):
-        self._baselines = {
-            "temperature": 22.5,  # °C — ideal museum climate
-            "humidity": 45.0,  # %RH
-            "vibration": 0.02,  # g (acceleration)
-        }
-        self._motion_zones = {z: False for z in ZoneID}
-        self._door_zones = {
-            ZoneID.ENTRANCE: True,  # open during hours
-            ZoneID.STORAGE: False,  # should stay closed
-            ZoneID.MAIN_HALL: True,
-        }
-        self._smoke_level = 0.0  # ppm
-        self._tick = 0
+    def __init__(self, port: str | None = None, baud: int = 115200):
+        self._port = port or os.getenv("ESP32_PORT")
+        self._baud = baud
 
-    # ── Public API ──────────────────────────────────────────────
+        # Real serial state
+        self._ser: serial.Serial | None = None
+        self._serial_running = False
+        self._serial_thread: threading.Thread | None = None
+        self._latest_hardware_json: dict | None = None
+        self._lock = threading.Lock()
+        self._is_hardware_connected = False
+        self._hardware_port_name = "SIMULATED"
 
-    def read_all(self) -> list[SensorReading]:
-        """Return a snapshot of every sensor in the museum."""
-        self._tick += 1
-        readings: list[SensorReading] = []
+        # Simulation state (matched to 5kg Load Cell, KY-008 laser, etc.)
+        self._baseline_weight = 854.2  # grams (relic on pedestal)
+        self._current_weight = 854.2
+        self._laser_breach = False
+        self._ambient_adc = 3120
+        self._external_threat = False
+        self._sim_tick = 0
+        self._breach_countdown = 0
 
-        # Temperature sensors (one per zone)
-        for zone in ZoneID:
-            temp = self._jitter(self._baselines["temperature"], sigma=0.4)
-            readings.append(
-                SensorReading(
-                    sensor_id=f"TEMP-{zone.name[:3]}",
-                    sensor_type="Temperature",
-                    zone=zone.value,
-                    value=round(temp, 1),
-                    unit="°C",
-                    status=self._threshold(temp, low=18, high=26, crit_high=30),
+        # Attempt auto-detection or connection to physical ESP32
+        self._init_serial()
+
+    # ── Serial Subsystem ────────────────────────────────────────
+
+    def _init_serial(self):
+        """Attempts to discover and connect to an ESP32 board over USB COM port."""
+        if not PYSERIAL_AVAILABLE:
+            return
+
+        target_port = self._port
+        if not target_port:
+            # Auto-detect common USB UART chips (CH340, CP210x, Silicon Labs)
+            try:
+                available = list(serial.tools.list_ports.comports())
+                for p in available:
+                    desc = (p.description or "").lower()
+                    hwid = (p.hwid or "").lower()
+                    if any(
+                        k in desc or k in hwid for k in ["cp210", "ch340", "usb-serial", "uart"]
+                    ):
+                        target_port = p.device
+                        break
+            except Exception as e:
+                logger.debug(f"Port scanning skipped: {e}")
+
+        if target_port:
+            try:
+                self._ser = serial.Serial(target_port, self._baud, timeout=1.0)
+                self._is_hardware_connected = True
+                self._hardware_port_name = target_port
+                self._serial_running = True
+                self._serial_thread = threading.Thread(target=self._serial_worker, daemon=True)
+                self._serial_thread.start()
+                logger.info(f"Connected to ESP32 hardware on {target_port} @ {self._baud} baud")
+            except Exception as e:
+                logger.info(
+                    f"ESP32 not detected on {target_port} ({e}). Running in realistic simulation mode."
                 )
-            )
+                self._is_hardware_connected = False
+                self._hardware_port_name = "SIMULATED"
 
-        # Humidity sensors (one per zone)
-        for zone in ZoneID:
-            hum = self._jitter(self._baselines["humidity"], sigma=2.0)
-            readings.append(
-                SensorReading(
-                    sensor_id=f"HUM-{zone.name[:3]}",
-                    sensor_type="Humidity",
-                    zone=zone.value,
-                    value=round(hum, 1),
-                    unit="%RH",
-                    status=self._threshold(hum, low=30, high=60, crit_high=70),
-                )
-            )
+    def _serial_worker(self):
+        """Continuously reads incoming JSON lines from physical ESP32."""
+        while self._serial_running and self._ser:
+            try:
+                if self._ser.in_waiting > 0:
+                    raw_bytes = self._ser.readline()
+                    line = raw_bytes.decode("utf-8", errors="ignore").strip()
+                    if line.startswith("{") and line.endswith("}"):
+                        parsed = json.loads(line)
+                        with self._lock:
+                            self._latest_hardware_json = parsed
+                            self._is_hardware_connected = True
+            except Exception:
+                time.sleep(0.05)
 
-        # PIR motion sensors
-        for zone in ZoneID:
-            # ~15 % chance of motion each tick
-            motion = random.random() < 0.15
-            self._motion_zones[zone] = motion
-            readings.append(
-                SensorReading(
-                    sensor_id=f"PIR-{zone.name[:3]}",
-                    sensor_type="Motion",
-                    zone=zone.value,
-                    value=1.0 if motion else 0.0,
-                    unit="detected" if motion else "clear",
-                    status=SensorStatus.WARNING if motion else SensorStatus.NORMAL,
-                )
-            )
+    def set_external_threat(self, threat_active: bool):
+        """Notifies sensor provider of AI vision threat state (armed suspect / weapon)."""
+        self._external_threat = threat_active
 
-        # Door contact sensors
-        for zone, default_open in self._door_zones.items():
-            # Small chance the door state flips
-            if random.random() < 0.05:
-                self._door_zones[zone] = not self._door_zones[zone]
-            is_open = self._door_zones[zone]
-            # Storage door open is critical
-            is_critical = zone == ZoneID.STORAGE and is_open
-            readings.append(
-                SensorReading(
-                    sensor_id=f"DOOR-{zone.name[:3]}",
-                    sensor_type="Door Contact",
-                    zone=zone.value,
-                    value=1.0 if is_open else 0.0,
-                    unit="OPEN" if is_open else "CLOSED",
-                    status=(SensorStatus.CRITICAL if is_critical else SensorStatus.NORMAL),
-                )
-            )
+    # ── Telemetry Reader ────────────────────────────────────────
 
-        # Smoke detector (building-wide)
-        self._smoke_level = max(0, self._jitter(self._smoke_level, sigma=0.3))
-        # Very rare spike to simulate false alarm
-        if random.random() < 0.01:
-            self._smoke_level = random.uniform(5, 15)
-        readings.append(
-            SensorReading(
-                sensor_id="SMOKE-BLD",
-                sensor_type="Smoke",
-                zone="Building-Wide",
-                value=round(self._smoke_level, 2),
-                unit="ppm",
-                status=self._threshold(self._smoke_level, low=-1, high=5, crit_high=10),
-            )
+    def read_all(self) -> list[HardwareSensor]:
+        """Returns instantaneous snapshot of the 6 core OpenI hardware sensors."""
+        with self._lock:
+            hw_data = self._latest_hardware_json if self._is_hardware_connected else None
+
+        if hw_data:
+            return self._build_from_hardware(hw_data)
+        return self._build_from_simulation()
+
+    def _build_from_hardware(self, data: dict) -> list[HardwareSensor]:
+        """Parses real telemetry from ESP32 ArduinoJson packet."""
+        lc = data.get("loadcell", {})
+        laser = data.get("laser", {})
+        alert_active = data.get("alert_active", False) or self._external_threat
+
+        weight_g = lc.get("weight_g", 0.0)
+        weight_alert = lc.get("alert", False)
+        beam_ok = laser.get("beam_ok", True)
+        ldr_raw = laser.get("ldr_raw", 0)
+
+        lc_status = SensorStatus.CRITICAL if weight_alert else SensorStatus.NORMAL
+        laser_status = SensorStatus.CRITICAL if not beam_ok else SensorStatus.NORMAL
+        buzzer_status = SensorStatus.CRITICAL if alert_active else SensorStatus.NORMAL
+        led_status = SensorStatus.CRITICAL if alert_active else SensorStatus.NORMAL
+
+        return [
+            HardwareSensor(
+                id="LC-5KG",
+                name="Artifact Weight",
+                hardware_model="Load Cell 5kg + HX711",
+                location="Exhibit Pedestal",
+                value=f"{weight_g:.1f}",
+                unit="g",
+                status=lc_status,
+                icon="scale",
+                color="#ef4444" if weight_alert else "#38bdf8",
+            ),
+            HardwareSensor(
+                id="LSR-01",
+                name="Laser Tripwire",
+                hardware_model="KY-008 Laser + LDR",
+                location="Perimeter Beam",
+                value="BREACH!" if not beam_ok else "SECURED",
+                unit="",
+                status=laser_status,
+                icon="crisis_alert",
+                color="#ef4444" if not beam_ok else "#10b981",
+            ),
+            HardwareSensor(
+                id="LDR-01",
+                name="Optical Light Bus",
+                hardware_model="GL5528 Photocell",
+                location="Pedestal Ambient",
+                value=f"{ldr_raw}",
+                unit="ADC",
+                status=SensorStatus.NORMAL,
+                icon="light_mode",
+                color="#f59e0b",
+            ),
+            HardwareSensor(
+                id="BUZ-01",
+                name="Acoustic Siren",
+                hardware_model="Active Buzzer + 2N2222",
+                location="Pedestal Alarm",
+                value="ALARM (85dB)" if alert_active else "STANDBY",
+                unit="",
+                status=buzzer_status,
+                icon="volume_up",
+                color="#ef4444" if alert_active else "#a855f7",
+            ),
+            HardwareSensor(
+                id="LED-01",
+                name="Defense Strobe",
+                hardware_model="5mm RGB LED Array",
+                location="Pedestal Beacon",
+                value="RED STROBE" if alert_active else "GREEN OK",
+                unit="",
+                status=led_status,
+                icon="flare",
+                color="#ef4444" if alert_active else "#22c55e",
+            ),
+            HardwareSensor(
+                id="ESP-32",
+                name="Controller Node",
+                hardware_model="ESP32 NodeMCU-32S",
+                location=f"USB ({self._hardware_port_name})",
+                value="HARDWARE ONLINE",
+                unit="",
+                status=SensorStatus.NORMAL,
+                icon="memory",
+                color="#06b6d4",
+            ),
+        ]
+
+    def _build_from_simulation(self) -> list[HardwareSensor]:
+        """Generates realistic telemetry for testing when ESP32 is not yet connected."""
+        self._sim_tick += 1
+
+        # Periodic simulated events (e.g. occasional brief perimeter beam breach)
+        if self._breach_countdown > 0:
+            self._breach_countdown -= 1
+            if self._breach_countdown == 0:
+                self._laser_breach = False
+        elif random.random() < 0.04:  # ~4% chance to simulate a beam cross
+            self._laser_breach = True
+            self._breach_countdown = 2  # lasts ~4 seconds
+
+        # Load Cell weight micro-fluctuation (±0.15g natural strain gauge noise)
+        self._current_weight = round(self._baseline_weight + random.gauss(0, 0.15), 1)
+
+        # Ambient optical noise
+        self._ambient_adc = int(3120 + random.gauss(0, 15))
+
+        # Combined alert state
+        is_breach = self._laser_breach
+        is_alert = is_breach or self._external_threat
+
+        laser_status = SensorStatus.CRITICAL if is_breach else SensorStatus.NORMAL
+        buzzer_status = SensorStatus.CRITICAL if is_alert else SensorStatus.NORMAL
+        led_status = (
+            SensorStatus.CRITICAL
+            if is_alert
+            else (SensorStatus.WARNING if is_breach else SensorStatus.NORMAL)
         )
 
-        # Vibration sensors on display cases
-        for zone in [ZoneID.MAIN_HALL, ZoneID.GALLERY_A, ZoneID.GALLERY_B]:
-            vib = abs(self._jitter(self._baselines["vibration"], sigma=0.01))
-            readings.append(
-                SensorReading(
-                    sensor_id=f"VIB-{zone.name[:3]}",
-                    sensor_type="Vibration",
-                    zone=zone.value,
-                    value=round(vib, 4),
-                    unit="g",
-                    status=self._threshold(vib, low=-1, high=0.08, crit_high=0.15),
-                )
-            )
-
-        return readings
+        return [
+            HardwareSensor(
+                id="LC-5KG",
+                name="Artifact Weight",
+                hardware_model="Load Cell 5kg + HX711",
+                location="Exhibit Pedestal",
+                value=f"{self._current_weight:.1f}",
+                unit="g",
+                status=SensorStatus.NORMAL,
+                icon="scale",
+                color="#38bdf8",
+            ),
+            HardwareSensor(
+                id="LSR-01",
+                name="Laser Tripwire",
+                hardware_model="KY-008 Laser + LDR",
+                location="Perimeter Beam",
+                value="BREACH!" if is_breach else "SECURED",
+                unit="",
+                status=laser_status,
+                icon="crisis_alert",
+                color="#ef4444" if is_breach else "#10b981",
+            ),
+            HardwareSensor(
+                id="LDR-01",
+                name="Optical Light Bus",
+                hardware_model="GL5528 Photocell",
+                location="Pedestal Ambient",
+                value=f"{self._ambient_adc}",
+                unit="ADC",
+                status=SensorStatus.NORMAL,
+                icon="light_mode",
+                color="#f59e0b",
+            ),
+            HardwareSensor(
+                id="BUZ-01",
+                name="Acoustic Siren",
+                hardware_model="Active Buzzer + 2N2222",
+                location="Pedestal Alarm",
+                value="ALARM (85dB)" if is_alert else "STANDBY",
+                unit="",
+                status=buzzer_status,
+                icon="volume_up",
+                color="#ef4444" if is_alert else "#a855f7",
+            ),
+            HardwareSensor(
+                id="LED-01",
+                name="Defense Strobe",
+                hardware_model="5mm RGB LED Array",
+                location="Pedestal Beacon",
+                value="RED STROBE" if is_alert else "GREEN OK",
+                unit="",
+                status=led_status,
+                icon="flare",
+                color="#ef4444" if is_alert else "#22c55e",
+            ),
+            HardwareSensor(
+                id="ESP-32",
+                name="Controller Node",
+                hardware_model="ESP32 NodeMCU-32S",
+                location="Bridge Node",
+                value="ONLINE (115.2k)",
+                unit="",
+                status=SensorStatus.NORMAL,
+                icon="memory",
+                color="#06b6d4",
+            ),
+        ]
 
     def get_summary(self) -> dict:
-        """Return aggregate counts for quick dashboard cards."""
-        readings = self.read_all()
-        total = len(readings)
-        normal = sum(1 for r in readings if r.status == SensorStatus.NORMAL)
-        warning = sum(1 for r in readings if r.status == SensorStatus.WARNING)
-        critical = sum(1 for r in readings if r.status == SensorStatus.CRITICAL)
-        motion_zones = [z.value for z, m in self._motion_zones.items() if m]
+        sensors = self.read_all()
         return {
-            "total_sensors": total,
-            "normal": normal,
-            "warning": warning,
-            "critical": critical,
-            "motion_zones": motion_zones,
-            "readings": readings,
+            "sensors": sensors,
+            "has_critical": any(s.status == SensorStatus.CRITICAL for s in sensors),
+            "has_warning": any(s.status == SensorStatus.WARNING for s in sensors),
         }
 
-    # ── Internal helpers ────────────────────────────────────────
 
-    @staticmethod
-    def _jitter(base: float, sigma: float = 1.0) -> float:
-        return base + random.gauss(0, sigma)
-
-    @staticmethod
-    def _threshold(
-        value: float,
-        low: float,
-        high: float,
-        crit_high: float,
-    ) -> SensorStatus:
-        if value >= crit_high:
-            return SensorStatus.CRITICAL
-        if value >= high or value <= low:
-            return SensorStatus.WARNING
-        return SensorStatus.NORMAL
+# Backward-compatible alias for existing imports
+MockSensorProvider = OpenISensorProvider

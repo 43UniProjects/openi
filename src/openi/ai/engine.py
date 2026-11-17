@@ -288,16 +288,19 @@ class SecurityEngine:
                     2,
                 )
 
-            # Draw HUD banner if threat flagged
+            # Add a subtle, professional corner HUD badge if threat is flagged
             if self.threat_active:
-                cv2.rectangle(frame, (10, 10), (450, 60), (0, 0, 180), -1)
+                # Sleek semi-transparent corner indicator (not blocking center view)
+                h_img, w_img = frame.shape[:2]
+                cv2.rectangle(frame, (w_img - 280, 15), (w_img - 15, 55), (15, 15, 30), -1)
+                cv2.rectangle(frame, (w_img - 280, 15), (w_img - 15, 55), (0, 0, 240), 2)
                 cv2.putText(
                     frame,
-                    "! CRITICAL: SUSPECT FLAGGED !",
-                    (20, 45),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (255, 255, 255),
+                    "! THREAT DETECTED !",
+                    (w_img - 265, 42),
+                    cv2.FONT_HERSHEY_DUPLEX,
+                    0.65,
+                    (0, 0, 255),
                     2,
                 )
 
