@@ -72,6 +72,8 @@ class SecurityDashboard:
         self._status_container: ui.element | None = None
         self._clock_label: ui.label | None = None
         self._log_element: ui.log | None = None
+        self._bus_status_label: ui.label | None = None
+        self._prev_sensor_status: dict[str, SensorStatus] = {}
 
         # Static card bindings to guarantee zero flicker / instant display
         self._sensor_ui: dict[str, dict] = {}
@@ -261,13 +263,13 @@ class SecurityDashboard:
                 with ui.row().classes("items-center justify-between w-full mb-1 shrink-0 px-1"):
                     with ui.row().classes("items-center gap-1.5"):
                         ui.html(
-                            '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>'
+                            '<span class="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]"></span>'
                         )
-                        ui.label("PERIMETER & ENVIRONMENTAL TELEMETRY").classes(
+                        ui.label("PHYSICAL EXHIBIT & PERIMETER SENSORS (ESP32 BUS)").classes(
                             "text-[11px] font-bold text-slate-200 tracking-wider font-brand"
                         )
-                    ui.label("HARDWARE BUS: ONLINE").classes(
-                        "text-[8.5px] text-emerald-400/80 font-mono font-bold tracking-widest"
+                    self._bus_status_label = ui.label("ESP32 BUS: INITIALIZING").classes(
+                        "text-[8.5px] text-cyan-400/90 font-mono font-bold tracking-widest"
                     )
 
                 # Pre-build 6 stable cards with permanent DOM handles
@@ -323,6 +325,7 @@ class SecurityDashboard:
                             "card": card_box,
                             "color": s.color,
                         }
+                        self._prev_sensor_status[s.id] = s.status
 
         # Periodic Event Timers
         ui.timer(REFRESH_INTERVAL, self._refresh_hardware_sensors)
@@ -361,11 +364,17 @@ class SecurityDashboard:
         self._cam_stats["weapons"].set_text(str(self.engine.weapon_count))
         self._cam_stats["suspects"].set_text(str(self.engine.suspect_count))
 
-        # Check threat state change
-        is_threat = self.engine.threat_active
-        if getattr(self, "_last_threat_state", None) != is_threat:
-            self._last_threat_state = is_threat
-            self._render_status_banner(is_threat=is_threat)
+        # Check threat state change from AI vision
+        is_ai_threat = self.engine.threat_active
+        self.sensor_provider.set_external_threat(is_ai_threat)
+
+        # Overall defense threat combines AI vision threats + physical perimeter breaches
+        summary = self.sensor_provider.get_summary()
+        overall_threat = is_ai_threat or summary.get("has_critical", False)
+
+        if getattr(self, "_last_threat_state", None) != overall_threat:
+            self._last_threat_state = overall_threat
+            self._render_status_banner(is_threat=overall_threat)
 
         # Pull AI engine threat alerts into the log
         pending_alerts = self.engine.get_pending_alerts()
@@ -378,10 +387,25 @@ class SecurityDashboard:
     def _refresh_hardware_sensors(self):
         sensors: list[HardwareSensor] = self.sensor_provider.read_all()
 
+        # Update ESP32 bus status text
+        if self._bus_status_label:
+            if getattr(self.sensor_provider, "_is_hardware_connected", False):
+                port_name = getattr(self.sensor_provider, "_hardware_port_name", "COM")
+                self._bus_status_label.set_text(f"ESP32 BUS: ONLINE ({port_name})")
+                self._bus_status_label.classes(
+                    replace="text-[8.5px] text-emerald-400 font-mono font-bold tracking-widest"
+                )
+            else:
+                self._bus_status_label.set_text("ESP32 BUS: ACTIVE (DEMO SIMULATION)")
+                self._bus_status_label.classes(
+                    replace="text-[8.5px] text-cyan-400/90 font-mono font-bold tracking-widest"
+                )
+
         for s in sensors:
             if s.id in self._sensor_ui:
                 ui_entry = self._sensor_ui[s.id]
                 ui_entry["val"].set_text(str(s.value))
+                ui_entry["val"].style(f"color: {s.color};")
                 ui_entry["unit"].set_text(s.unit)
 
                 # Status text and class
@@ -397,31 +421,40 @@ class SecurityDashboard:
                         replace="text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-red-400 bg-red-950/60 border-red-800"
                     )
                     ui_entry["card"].style(
-                        f"border-color: #ef4444; border-left: 3.5px solid {ui_entry['color']}; background-color: rgba(239, 68, 68, 0.1);"
+                        f"border-color: #ef4444; border-left: 3.5px solid {s.color}; background-color: rgba(239, 68, 68, 0.1);"
                     )
                 elif s.status == SensorStatus.WARNING:
                     ui_entry["status"].classes(
                         replace="text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-amber-400 bg-amber-950/60 border-amber-800"
                     )
                     ui_entry["card"].style(
-                        f"border-color: #f59e0b; border-left: 3.5px solid {ui_entry['color']}; background-color: rgba(245, 158, 11, 0.08);"
+                        f"border-color: #f59e0b; border-left: 3.5px solid {s.color}; background-color: rgba(245, 158, 11, 0.08);"
                     )
                 else:
                     ui_entry["status"].classes(
                         replace="text-[7.5px] font-bold font-mono px-1 py-0.5 rounded border text-emerald-400 bg-emerald-950/40 border-emerald-800"
                     )
                     ui_entry["card"].style(
-                        f"border-color: #1e293b; border-left: 3.5px solid {ui_entry['color']}; background-color: #040711;"
+                        f"border-color: #1e293b; border-left: 3.5px solid {s.color}; background-color: #040711;"
                     )
 
-        # Check for critical sensor alerts to push to Incident Log
-        for s in sensors:
-            if s.status == SensorStatus.CRITICAL:
-                ts = datetime.now().strftime("%H:%M:%S")
-                if self._log_element:
-                    self._log_element.push(
-                        f"[{ts}] ⚠️ PERIMETER ALERT: {s.name} ({s.location}) - VALUE: {s.value} {s.unit}"
-                    )
+                # Edge-triggered incident feed logging (avoid repetitive spam)
+                prev_status = self._prev_sensor_status.get(s.id, SensorStatus.NORMAL)
+                if s.status != prev_status:
+                    ts = datetime.now().strftime("%H:%M:%S")
+                    if s.status == SensorStatus.CRITICAL and self._log_element:
+                        self._log_element.push(
+                            f"[{ts}] ⚠️ PERIMETER BREACH: {s.name} ({s.location}) — Status: {s.value} {s.unit}"
+                        )
+                    elif (
+                        prev_status == SensorStatus.CRITICAL
+                        and s.status == SensorStatus.NORMAL
+                        and self._log_element
+                    ):
+                        self._log_element.push(
+                            f"[{ts}] 🛡️ ZONE SECURED: {s.name} returned to Nominal state."
+                        )
+                    self._prev_sensor_status[s.id] = s.status
 
     def _update_clock(self):
         self._clock_label.set_text(datetime.now().strftime("%Y-%m-%d  %H:%M:%S"))
